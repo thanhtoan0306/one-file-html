@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth-Moon Orbit</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            overflow: hidden;
+        }
+
+        .orbit-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+
+        .earth {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80px;
+            height: 80px;
+            background-color: #3a86ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px #3a86ff;
+        }
+
+        .moon { /* No longer animating the moon-orbit container */
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #ccc;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #fff; /* Reduced shadow intensity */
+        }
+       
+        /* Remove the @keyframes orbit - we handle animation in JS now */
+    </style>
+</head>
+<body>
+    <div class="orbit-container">
+        <div class="earth"></div>
+        <script>
+            const earth = document.querySelector('.earth');
+            const orbitContainer = document.querySelector('.orbit-container');
+            const numMoons = 20;
+            const moons = [];
+
+            for (let i = 0; i < numMoons; i++) {
+                const moon = document.createElement('div');
+                moon.className = 'moon';
+
+                // --- Varying Orbit Parameters ---
+                const orbitRadius = 100 + Math.random() * 100; // Random radius between 100 and 200
+                const orbitSpeed = 0.002 + Math.random() * 0.008; // Random speed between 0.002 and 0.01
+                let angle = Math.random() * 2 * Math.PI; // Random starting angle
+                const orbitTiltX = (Math.random() - 0.5) * 45; // Tilt on x-axis (-22.5 to 22.5 degrees)
+                const orbitTiltY = (Math.random() - 0.5) * 45;  //Tilt on y-axis
+                
+                moon.dataset.orbitRadius = orbitRadius; // Store for later use
+                moon.dataset.orbitSpeed = orbitSpeed;
+                moon.dataset.angle = angle;
+                moon.dataset.tiltX = orbitTiltX;
+                moon.dataset.tiltY = orbitTiltY;
+                
+                orbitContainer.appendChild(moon);
+                moons.push(moon);
+            }
+
+
+          function animateMoons() {
+            for (const moon of moons) {
+                let angle = parseFloat(moon.dataset.angle);
+                const orbitRadius = parseFloat(moon.dataset.orbitRadius);
+                const orbitSpeed = parseFloat(moon.dataset.orbitSpeed);
+                const tiltX = parseFloat(moon.dataset.tiltX);
+                const tiltY = parseFloat(moon.dataset.tiltY);
+
+                // Update angle
+                angle += orbitSpeed;
+                moon.dataset.angle = angle; // Store the updated angle
+
+              // --- Calculate position with tilt ---
+              const x = Math.cos(angle) * orbitRadius;
+              const y = Math.sin(angle) * orbitRadius;
+
+              // Apply tilts using CSS transforms
+              moon.style.transform = `
+                  translate(-50%, -50%)
+                  translate(${x}px, ${y}px)
+                  rotateX(${tiltX}deg)
+                  rotateY(${tiltY}deg)
+
+              `;
+              
+            }
+
+                requestAnimationFrame(animateMoons); // Efficient animation loop
+            }
+            animateMoons();
+
+        </script>
+    </div>
+</body>
+</html>

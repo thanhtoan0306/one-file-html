@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moon Orbiting Earth</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+
+        .container {
+            position: relative; /*  Essential for positioning children absolutely */
+            width: 300px;  /* Adjust as needed for overall size */
+            height: 300px; /*  Adjust as needed */
+        }
+
+        .earth {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Center the Earth */
+            width: 100px;
+            height: 100px;
+            background-color: blue; /* Or use an Earth image */
+            /* background-image: url('earth.jpg');  Replace with your Earth image path */
+            background-size: cover;
+             border-radius: 50%; /* Make it round */
+            box-shadow: 0 0 20px 5px rgba(0, 0, 255, 0.5); /* Optional glow */
+        }
+
+
+        .moon-orbit {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px; /*  Orbit radius (distance from Earth center) */
+            height: 200px;
+            border-radius: 50%;
+            /*  Optional:  Show the orbit path (uncomment to see) */
+            /* border: 1px dashed rgba(255, 255, 255, 0.2); */
+            animation: orbit 10s linear infinite; /*  The orbit animation */
+
+        }
+
+        .moon {
+            position: absolute;
+            top: 0;  /* Start at the top of the orbit */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 30px;
+            background-color: lightgray; /* Or use a Moon image */
+            /* background-image: url('moon.jpg'); Replace with your Moon image */
+            background-size: cover;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.3); /* Optional glow */
+        }
+
+
+        @keyframes orbit {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="earth"></div>
+        <div class="moon-orbit">
+            <div class="moon"></div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth-Moon Orbit</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            overflow: hidden;
+        }
+
+        .orbit-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+
+        .earth {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80px;
+            height: 80px;
+            background-color: #3a86ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px #3a86ff;
+        }
+
+        .moon-orbit {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            animation: orbit 10s linear infinite;
+        }
+
+        .moon {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #ccc;
+            border-radius: 50%;
+            box-shadow: 0 0 20px #fff;
+        }
+
+        @keyframes orbit {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="orbit-container">
+        <div class="earth"></div>
+        <div class="moon-orbit">
+            <script>
+                for (let i = 0; i < 20; i++) {
+                    let moon = document.createElement('div');
+                    moon.className = 'moon';
+                    let angle = (i / 20) * 360;
+                    moon.style.transform = `rotate(${angle}deg) translate(150px) rotate(-${angle}deg)`;
+                    document.querySelector('.moon-orbit').appendChild(moon);
+                }
+            </script>
+        </div>
+    </div>
+</body>
+</html>

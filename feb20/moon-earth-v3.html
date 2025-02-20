@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Moon Orbiting Earth (Three.js)</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; } /* Important for full-screen */
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene, Camera, Renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Background (stars) - Using a simple texture for efficiency
+        const textureLoader = new THREE.TextureLoader();
+        const bgTexture = textureLoader.load('https://c.pxhere.com/photos/67/d6/star_night_sky_starry_sky_space_cosmos_lights-931662.jpg!d'); // Replace with a starfield texture URL
+        scene.background = bgTexture;
+
+
+        // Earth
+        const earthGeometry = new THREE.SphereGeometry(1, 32, 32);
+        const earthMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue Earth
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // Moon
+        const moonGeometry = new THREE.SphereGeometry(0.27, 32, 32); // Scaled down moon
+        const moonMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 }); // Gray Moon
+        const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+        scene.add(moon);
+      
+        // Orbital Path (optional, for visualization)
+        const orbitRadius = 3;
+        const orbitGeometry = new THREE.RingGeometry(orbitRadius - 0.01, orbitRadius + 0.01, 64);
+        const orbitMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity:0.2}); //Semi transparent
+        const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
+        orbit.rotation.x = Math.PI / 2; // Rotate to lie flat
+        scene.add(orbit);
+
+
+        // Moon's Initial Position and Orbit Configuration
+        let moonAngle = 0;
+        const orbitSpeed = 0.005;  // Adjust for speed
+
+        // Camera Positioning
+        camera.position.z = 5;
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Moon Orbit
+            moonAngle += orbitSpeed;
+            moon.position.x = Math.cos(moonAngle) * orbitRadius;
+            moon.position.z = Math.sin(moonAngle) * orbitRadius;
+
+            // Earth rotation (optional)
+            earth.rotation.y += 0.001; //Slow rotation
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+          const newWidth = window.innerWidth;
+          const newHeight = window.innerHeight;
+
+          camera.aspect = newWidth / newHeight;
+          camera.updateProjectionMatrix();
+
+          renderer.setSize(newWidth, newHeight);
+        });
+
+
+    </script>
+</body>
+</html>

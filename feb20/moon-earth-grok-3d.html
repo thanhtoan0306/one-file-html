@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth-Moon Orbit (Three.js)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Earth
+        const earthGeometry = new THREE.SphereGeometry(40, 32, 32);
+        const earthMaterial = new THREE.MeshPhongMaterial({ color: 0x3a86ff });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // Moon group for rotation
+        const moonOrbit = new THREE.Group();
+        scene.add(moonOrbit);
+
+        // Moons
+        const moonGeometry = new THREE.SphereGeometry(15, 32, 32);
+        const moonMaterial = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+
+        // Create 4 moons at different positions
+        const moons = [];
+        const moonPositions = [
+            { x: 0, y: 200, z: 0 },
+            { x: 200, y: 0, z: 0 },
+            { x: -200, y: 0, z: 0 },
+            { x: 0, y: -200, z: 0 }
+        ];
+
+        moonPositions.forEach(pos => {
+            const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.position.set(pos.x, pos.y, pos.z);
+            moonOrbit.add(moon);
+            moons.push(moon);
+        });
+
+        // Lighting
+        const pointLight = new THREE.PointLight(0xffffff, 1, 500);
+        pointLight.position.set(100, 100, 100);
+        scene.add(pointLight);
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        // Camera position
+        camera.position.z = 400;
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate moon orbit
+            moonOrbit.rotation.z += 0.01; // Adjust speed here (0.01 ≈ 10s per rotation)
+
+            // Optional: Rotate Earth
+            earth.rotation.y += 0.005;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

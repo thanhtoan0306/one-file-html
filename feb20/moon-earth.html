@@ -1,0 +1,60 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moon Orbiting Earth</title>
+    <style>
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .earth {
+            width: 200px;
+            height: 200px;
+            background-color: #08f;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 0 50px #08f;
+        }
+        .moon {
+            width: 50px;
+            height: 50px;
+            background-color: #ccc;
+            border-radius: 50%;
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: orbit 10s linear infinite;
+            box-shadow: 0 0 20px #ccc;
+        }
+        .orbit-path{
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            border: 1px dashed rgba(255, 255, 255, 0.5);
+            top: -50px;
+            left: -50px;
+        }
+        @keyframes orbit {
+            to {
+                transform: rotate(360deg) translateX(150px) rotate(-360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="earth">
+        <div class="orbit-path"></div>
+        <div class="moon"></div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth-Moon Orbit</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            overflow: hidden;
+        }
+
+        .orbit-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+
+        .earth {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80px;
+            height: 80px;
+            background-color: #3a86ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px #3a86ff;
+        }
+
+        .moon-orbit {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            animation: orbit 3s linear infinite;
+        }
+
+        .moon {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: #ccc;
+            border-radius: 50%;
+            box-shadow: 0 0 20px #fff;
+        }
+
+        .moon:nth-child(1) {
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .moon:nth-child(2) {
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+        }
+
+        .moon:nth-child(3) {
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+        }
+
+        .moon:nth-child(4) {
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        @keyframes orbit {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="orbit-container">
+        <div class="earth"></div>
+        <div class="moon-orbit">
+            <div class="moon"></div>
+            <div class="moon"></div>
+            <div class="moon"></div>
+            <div class="moon"></div>
+        </div>
+    </div>
+</body>
+</html>
