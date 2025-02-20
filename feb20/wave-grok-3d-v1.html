@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Ballet of Earth and Moons</title>
+    <style>
+        /* Summoning the star-dusted void */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1a1a3d 0%, #000000 70%);
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- The canvas where our cosmic dance unfolds -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        // Crafting the celestial stage
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // The radiant Earth, pulsing with life
+        const earthGeometry = new THREE.SphereGeometry(40, 32, 32);
+        const earthMaterial = new THREE.MeshPhongMaterial({
+            color: 0x33ccff,
+            emissive: 0x006699,
+            shininess: 50
+        });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // Creating the 9 lunar muses
+        const moons = [];
+        const moonData = [
+            { size: 8, color: 0xff99cc, radius: 80, speed: 0.02, tilt: 0.1 },
+            { size: 12, color: 0xccff99, radius: 120, speed: 0.015, tilt: 0.2 },
+            { size: 6, color: 0x99ccff, radius: 160, speed: 0.025, tilt: -0.15 },
+            { size: 10, color: 0xffcc66, radius: 200, speed: 0.01, tilt: 0.25 },
+            { size: 7, color: 0xcc99ff, radius: 240, speed: 0.018, tilt: -0.1 },
+            { size: 9, color: 0xff9999, radius: 280, speed: 0.022, tilt: 0.3 },
+            { size: 11, color: 0x99ffcc, radius: 320, speed: 0.012, tilt: -0.2 },
+            { size: 5, color: 0xffff99, radius: 360, speed: 0.028, tilt: 0.15 },
+            { size: 13, color: 0xcc66ff, radius: 400, speed: 0.008, tilt: -0.25 }
+        ];
+
+        moonData.forEach(data => {
+            const geometry = new THREE.SphereGeometry(data.size, 16, 16);
+            const material = new THREE.MeshPhongMaterial({
+                color: data.color,
+                emissive: data.color,
+                emissiveIntensity: 0.2
+            });
+            const moon = new THREE.Mesh(geometry, material);
+            moon.userData = { ...data, angle: Math.random() * Math.PI * 2 };
+            scene.add(moon);
+            moons.push(moon);
+        });
+
+        // Illuminating the cosmic dance
+        const sunLight = new THREE.PointLight(0xffffff, 1.5, 1000);
+        sunLight.position.set(500, 500, 500);
+        scene.add(sunLight);
+        
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+        scene.add(ambientLight);
+
+        // Positioning the celestial observer
+        camera.position.set(0, 200, 600);
+
+        // The grand cosmic ballet
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+
+            // Earth's gentle pulse
+            earth.scale.setScalar(1 + Math.sin(time) * 0.05);
+
+            // Each moon's unique dance
+            moons.forEach((moon, i) => {
+                const data = moon.userData;
+                data.angle += data.speed;
+                
+                // Elliptical orbit with tilt
+                const x = Math.cos(data.angle) * data.radius;
+                const y = Math.sin(data.angle) * data.radius * 0.7 * Math.sin(data.tilt);
+                const z = Math.sin(data.angle) * data.radius * data.tilt;
+                
+                moon.position.set(x, y, z);
+                
+                // Subtle moon shimmer
+                moon.scale.setScalar(1 + Math.sin(time * data.speed * 10) * 0.1);
+            });
+
+            // Camera's sweeping gaze
+            camera.position.x = Math.sin(time * 0.1) * 600;
+            camera.position.z = Math.cos(time * 0.1) * 600;
+            camera.lookAt(0, 0, 0);
+
+            renderer.render(scene, camera);
+        }
+
+        // Adapting to the mortal window
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Begin the eternal dance
+        animate();
+    </script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth with Three Moons</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            overflow: hidden;
+        }
+
+        .orbit-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+        }
+
+        .earth {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80px;
+            height: 80px;
+            background-color: #3a86ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px #3a86ff;
+        }
+
+        .moon-orbit-1, .moon-orbit-2, .moon-orbit-3 {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .moon-orbit-1 {
+            transform: scale(0.6);
+            animation: orbit 8s linear infinite;
+        }
+
+        .moon-orbit-2 {
+            transform: scale(0.8);
+            animation: orbit 12s linear infinite;
+        }
+
+        .moon-orbit-3 {
+            animation: orbit 16s linear infinite;
+        }
+
+        .moon-1, .moon-2, .moon-3 {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+
+        .moon-1 {
+            width: 25px;
+            height: 25px;
+            background-color: #ccc;
+            box-shadow: 0 0 15px #fff;
+        }
+
+        .moon-2 {
+            width: 30px;
+            height: 30px;
+            background-color: #ddd;
+            box-shadow: 0 0 20px #fff;
+        }
+
+        .moon-3 {
+            width: 35px;
+            height: 35px;
+            background-color: #eee;
+            box-shadow: 0 0 25px #fff;
+        }
+
+        @keyframes orbit {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="orbit-container">
+        <div class="earth"></div>
+        <div class="moon-orbit-1">
+            <div class="moon-1"></div>
+        </div>
+        <div class="moon-orbit-2">
+            <div class="moon-2"></div>
+        </div>
+        <div class="moon-orbit-3">
+            <div class="moon-3"></div>
+        </div>
+    </div>
+</body>
+</html>

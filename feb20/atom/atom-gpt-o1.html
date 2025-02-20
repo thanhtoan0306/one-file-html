@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Uranium Atom Simulation</title>
+  <!-- Three.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.142.0/build/three.min.js"></script>
+  <!-- Optional OrbitControls (for camera interaction) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.142.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    /* Basic reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    /* Container for the Three.js canvas */
+    #atom-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* Dark, starry background using radial-gradient plus a subtle star pattern */
+    body {
+      background: radial-gradient(circle at center, #000 40%, #050505 100%);
+      background-repeat: no-repeat;
+      background-size: cover;
+      /* You can add a starry background image if you want something more decorative. */
+    }
+
+    /* Overlay controls */
+    #controls {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #fff;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+    }
+    #controls label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    #controls input[type="range"] {
+      width: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div id="atom-container"></div>
+
+  <!-- Simple UI for changing animation speed / perspective toggle -->
+  <div id="controls">
+    <label for="speedRange">Animation Speed:</label>
+    <input type="range" id="speedRange" min="0.1" max="5" step="0.1" value="1" />
+    <br/>
+    <button id="toggleCamera">Toggle Camera View</button>
+  </div>
+
+  <script>
+    /*************************************************************
+     * SCENE, CAMERA, RENDERER SETUP
+     *************************************************************/
+    const container = document.getElementById('atom-container');
+
+    const scene = new THREE.Scene();
+    scene.background = null; // We'll use the CSS background
+
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.set(0, 0, 20);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
+
+    // Add subtle ambient light
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+
+    // Central point light (soft white glow) near the nucleus
+    const pointLight = new THREE.PointLight(0xffffff, 2, 100);
+    pointLight.position.set(0, 0, 0);
+    scene.add(pointLight);
+
+    // Optional controls for orbiting around the atom
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    /*************************************************************
+     * NUCLEUS - Large pulsating sphere + random distribution of protons and neutrons
+     *************************************************************/
+    // Create a parent group for the entire atom (for subtle rotation)
+    const atomGroup = new THREE.Group();
+    scene.add(atomGroup);
+
+    // Pulsating sphere geometry (visual representation of the nucleus boundary)
+    const nucleusRadius = 1.0;
+    const nucleusGeometry = new THREE.SphereGeometry(nucleusRadius, 32, 32);
+    const nucleusMaterial = new THREE.MeshPhongMaterial({
+      color: 0x222222,
+      emissive: 0x111111,
+      emissiveIntensity: 0.5,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const nucleusMesh = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
+    atomGroup.add(nucleusMesh);
+
+    // Protons and Neutrons instanced
+    const protonCount = 92;
+    const neutronCount = 146;
+    const totalNucleons = protonCount + neutronCount;
+
+    // Proton InstancedMesh
+    const protonGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+    const protonMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+    const protonInstanced = new THREE.InstancedMesh(protonGeometry, protonMaterial, protonCount);
+    protonInstanced.instanceMatrix.setUsage(THREE.DynamicDrawUsage); // allow dynamic updates
+
+    // Neutron InstancedMesh
+    const neutronGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+    const neutronMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+    const neutronInstanced = new THREE.InstancedMesh(neutronGeometry, neutronMaterial, neutronCount);
+    neutronInstanced.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    // Randomly place protons and neutrons inside the nucleus sphere
+    const placeNucleons = (instancedMesh, count) => {
+      const dummy = new THREE.Object3D();
+      for (let i = 0; i < count; i++) {
+        // Random direction
+        const theta = Math.acos(2 * Math.random() - 1);
+        const phi = 2 * Math.PI * Math.random();
+        const r = Math.random() * (nucleusRadius * 0.8); // keep them within 80% of the sphere radius
+
+        const x = r * Math.sin(theta) * Math.cos(phi);
+        const y = r * Math.sin(theta) * Math.sin(phi);
+        const z = r * Math.cos(theta);
+
+        dummy.position.set(x, y, z);
+        dummy.updateMatrix();
+        instancedMesh.setMatrixAt(i, dummy.matrix);
+      }
+      instancedMesh.instanceMatrix.needsUpdate = true;
+    };
+
+    placeNucleons(protonInstanced, protonCount);
+    placeNucleons(neutronInstanced, neutronCount);
+
+    atomGroup.add(protonInstanced);
+    atomGroup.add(neutronInstanced);
+
+    /*************************************************************
+     * ELECTRON SHELLS AND ELECTRONS
+     *************************************************************/
+    // We'll distribute 92 electrons among 3 shells arbitrarily:
+    // e.g., 30 in Shell 1, 30 in Shell 2, 32 in Shell 3 = 92 total
+    const shellElectronCounts = [30, 30, 32];
+    const shellRadii = [3, 4, 5]; // distances for each shell from nucleus
+    const electronSpeedFactors = [0.8, 1.2, 1.6]; // different orbital speeds
+
+    // Single geometry & material for electrons
+    const electronGeometry = new THREE.SphereGeometry(0.04, 8, 8);
+    const electronMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+
+    // We store shell data for the animation loop
+    const shellsData = [];
+
+    for (let s = 0; s < shellElectronCounts.length; s++) {
+      const count = shellElectronCounts[s];
+      const radius = shellRadii[s];
+      const shellGroup = new THREE.Group(); // group to hold instanced mesh + track angles
+      atomGroup.add(shellGroup);
+
+      const instanced = new THREE.InstancedMesh(electronGeometry, electronMaterial, count);
+      instanced.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+      // Store angle offsets for each electron
+      const angles = [];
+      const dummy = new THREE.Object3D();
+      for (let i = 0; i < count; i++) {
+        // Random start angle
+        const angle = Math.random() * Math.PI * 2;
+        angles.push(angle);
+
+        // For elliptical orbits, we can slightly vary xRadius, yRadius
+        const xRadius = radius * (1 + Math.random() * 0.2);
+        const yRadius = radius * (1 - Math.random() * 0.2);
+
+        // Position the electron initially
+        const x = xRadius * Math.cos(angle);
+        const z = yRadius * Math.sin(angle);
+
+        dummy.position.set(x, 0, z);
+        dummy.updateMatrix();
+        instanced.setMatrixAt(i, dummy.matrix);
+      }
+      instanced.instanceMatrix.needsUpdate = true;
+      shellGroup.add(instanced);
+
+      shellsData.push({
+        instanced,
+        angles,
+        radius,
+        electronCount: count,
+        xRadius: radius,       // We’ll keep one radius (or separate x/y if elliptical)
+        zRadius: radius * 0.8, // Slight ellipse
+        speed: electronSpeedFactors[s],
+      });
+    }
+
+    /*************************************************************
+     * INTERACTION (Hover Highlight)
+     *************************************************************/
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let highlightedShellIndex = null;
+    let highlightedElectronIndex = null;
+
+    // We’ll create separate InstancedBufferAttributes for color highlighting,
+    // or we can simply set the material emissive for demonstration.
+    // For simplicity, we can re-color the instance on hover.
+    const highlightColor = new THREE.Color(0xffff00);
+    const originalColor = new THREE.Color(0xffffff);
+
+    function onPointerMove(event) {
+      // Convert mouse to normalized device coordinates (-1 to +1)
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+    window.addEventListener('pointermove', onPointerMove, false);
+
+    function checkIntersections() {
+      // Raycast from camera through mouse position
+      raycaster.setFromCamera(mouse, camera);
+
+      // For each shell's electron instanced mesh, check intersection
+      let foundIntersection = false;
+      for (let s = 0; s < shellsData.length; s++) {
+        const { instanced } = shellsData[s];
+        const intersects = raycaster.intersectObject(instanced);
+
+        if (intersects.length > 0) {
+          foundIntersection = true;
+          // instanceId is the electron index
+          const instanceId = intersects[0].instanceId;
+
+          // If it's a different electron than previously highlighted,
+          // revert old highlight, set new highlight
+          if (highlightedShellIndex !== s || highlightedElectronIndex !== instanceId) {
+            // Revert old highlight
+            if (highlightedShellIndex !== null) {
+              revertHighlight(
+                shellsData[highlightedShellIndex].instanced,
+                highlightedElectronIndex
+              );
+            }
+            // Set new highlight
+            applyHighlight(instanced, instanceId);
+
+            highlightedShellIndex = s;
+            highlightedElectronIndex = instanceId;
+          }
+          break;
+        }
+      }
+
+      // If no intersection found, revert highlight if any
+      if (!foundIntersection && highlightedShellIndex !== null) {
+        revertHighlight(
+          shellsData[highlightedShellIndex].instanced,
+          highlightedElectronIndex
+        );
+        highlightedShellIndex = null;
+        highlightedElectronIndex = null;
+      }
+    }
+
+    function applyHighlight(instancedMesh, index) {
+      instancedMesh.setColorAt(index, highlightColor);
+      instancedMesh.instanceColor.needsUpdate = true;
+    }
+
+    function revertHighlight(instancedMesh, index) {
+      instancedMesh.setColorAt(index, originalColor);
+      instancedMesh.instanceColor.needsUpdate = true;
+    }
+
+    /*************************************************************
+     * ANIMATION LOOP
+     *************************************************************/
+    let clock = new THREE.Clock();
+    let pulse = 0;
+    let speedFactor = 1;
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      // Pulse the nucleus sphere
+      pulse += delta * 2; // adjust speed of pulsation
+      const scale = 1 + Math.sin(pulse) * 0.05;
+      nucleusMesh.scale.set(scale, scale, scale);
+
+      // Subtle rotation of the entire atom
+      atomGroup.rotation.y += 0.001 * speedFactor;
+
+      // Update electron orbits
+      shellsData.forEach(shellData => {
+        const { instanced, angles, xRadius, zRadius, speed } = shellData;
+        const dummy = new THREE.Object3D();
+        for (let i = 0; i < angles.length; i++) {
+          angles[i] += delta * speed * 0.5 * speedFactor; // speed factor
+          const angle = angles[i];
+          const x = xRadius * Math.cos(angle);
+          const z = zRadius * Math.sin(angle);
+          dummy.position.set(x, 0, z);
+          dummy.updateMatrix();
+          instanced.setMatrixAt(i, dummy.matrix);
+        }
+        instanced.instanceMatrix.needsUpdate = true;
+      });
+
+      // Check for hover intersections
+      checkIntersections();
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    /*************************************************************
+     * RESPONSIVE RESIZING
+     *************************************************************/
+    window.addEventListener('resize', onWindowResize, false);
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    /*************************************************************
+     * UI CONTROLS
+     *************************************************************/
+    const speedRange = document.getElementById('speedRange');
+    speedRange.addEventListener('input', (e) => {
+      speedFactor = parseFloat(e.target.value);
+    });
+
+    // Toggle camera view (simple demonstration)
+    let toggle = false;
+    const toggleButton = document.getElementById('toggleCamera');
+    toggleButton.addEventListener('click', () => {
+      toggle = !toggle;
+      if (toggle) {
+        camera.position.set(0, 20, 0);
+        camera.lookAt(0, 0, 0);
+      } else {
+        camera.position.set(0, 0, 20);
+        camera.lookAt(0, 0, 0);
+      }
+    });
+  </script>
+</body>
+</html>

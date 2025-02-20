@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth with 100 Moons</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            overflow: hidden;
+        }
+
+        .orbit-container {
+            position: relative;
+            width: 800px;
+            height: 800px;
+        }
+
+        .earth {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80px;
+            height: 80px;
+            background-color: #3a86ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px #3a86ff;
+            z-index: 100;
+        }
+
+        .moon-orbit {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0.5px solid rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+        }
+
+        .moon {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+
+        @keyframes orbit {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="orbit-container" id="system">
+        <div class="earth"></div>
+    </div>
+
+    <script>
+        function createMoonSystem() {
+            const container = document.getElementById('system');
+            const totalMoons = 100;
+
+            for (let i = 0; i < totalMoons; i++) {
+                // Create orbit
+                const orbit = document.createElement('div');
+                orbit.className = 'moon-orbit';
+                
+                // Calculate scale (from 0.2 to 1)
+                const scale = 0.2 + (i * 0.8 / totalMoons);
+                
+                // Calculate rotation speed (faster for inner moons)
+                const rotationSpeed = 5 + (i * 25 / totalMoons);
+                
+                // Calculate moon size (smaller for outer moons)
+                const moonSize = Math.max(4, 20 - (i * 15 / totalMoons));
+                
+                // Calculate colors
+                const brightness = 150 + Math.floor((i * 105) / totalMoons);
+                const color = `rgb(${brightness}, ${brightness}, ${brightness})`;
+                
+                // Apply styles
+                orbit.style.transform = `scale(${scale})`;
+                orbit.style.animation = `orbit ${rotationSpeed}s linear infinite`;
+                
+                // Create moon
+                const moon = document.createElement('div');
+                moon.className = 'moon';
+                moon.style.width = `${moonSize}px`;
+                moon.style.height = `${moonSize}px`;
+                moon.style.backgroundColor = color;
+                moon.style.boxShadow = `0 0 ${moonSize/2}px ${color}`;
+                
+                // Random initial position
+                const randomDegree = Math.random() * 360;
+                orbit.style.transform = `scale(${scale}) rotate(${randomDegree}deg)`;
+                
+                // Assemble
+                orbit.appendChild(moon);
+                container.appendChild(orbit);
+            }
+        }
+
+        // Initialize the system
+        createMoonSystem();
+    </script>
+</body>
+</html>

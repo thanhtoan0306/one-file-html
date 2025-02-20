@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Uranium Atom Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-family: Arial;
+            font-size: 14px;
+        }
+        .label {
+            position: absolute;
+            color: #fff;
+            font-family: Arial;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Uranium-238 Atom Model<br>Protons: 92 | Neutrons: 146 | Electrons: 92</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+        pointLight.position.set(10, 10, 10);
+        scene.add(pointLight);
+
+        // Nucleus (Protons and Neutrons)
+        const nucleus = new THREE.Group();
+        const protonGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+        const neutronGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+        
+        const protonMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff4444,
+            shininess: 100
+        });
+        
+        const neutronMaterial = new THREE.MeshPhongMaterial({
+            color: 0x4444ff,
+            shininess: 100
+        });
+
+        // Create 92 protons and 146 neutrons
+        for(let i = 0; i < 238; i++) {
+            const material = i < 92 ? protonMaterial : neutronMaterial;
+            const nucleon = new THREE.Mesh(
+                i < 92 ? protonGeometry : neutronGeometry,
+                material
+            );
+            
+            // Random position within nucleus
+            const position = new THREE.Vector3(
+                (Math.random() - 0.5) * 3,
+                (Math.random() - 0.5) * 3,
+                (Math.random() - 0.5) * 3
+            ).normalize().multiplyScalar(Math.random() * 2);
+            
+            nucleon.position.copy(position);
+            nucleus.add(nucleon);
+        }
+
+        scene.add(nucleus);
+
+        // Electron Shells (7 shells for uranium)
+        const electronShells = [];
+        const electronGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+        const electronMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffff00,
+            emissive: 0xaaaa00
+        });
+
+        // Shell configuration (n=1 to 7)
+        const shellConfig = [
+            { radius: 5, electrons: 2 },
+            { radius: 10, electrons: 8 },
+            { radius: 15, electrons: 18 },
+            { radius: 20, electrons: 32 },
+            { radius: 25, electrons: 21 },
+            { radius: 30, electrons: 9 },
+            { radius: 35, electrons: 2 }
+        ];
+
+        // Create electron orbits
+        shellConfig.forEach((config, shellIndex) => {
+            const shellGroup = new THREE.Group();
+            const orbitGeometry = new THREE.TorusGeometry(
+                config.radius, 
+                0.1, 
+                2, 
+                50
+            );
+            
+            const orbitMaterial = new THREE.MeshBasicMaterial({
+                color: 0x666666,
+                transparent: true,
+                opacity: 0.3
+            });
+            
+            const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
+            orbit.rotation.x = Math.PI/2;
+            shellGroup.add(orbit);
+
+            // Distribute electrons around the orbit
+            const angleStep = (Math.PI * 2) / config.electrons;
+            for(let i = 0; i < config.electrons; i++) {
+                const electron = new THREE.Mesh(electronGeometry, electronMaterial);
+                const angle = angleStep * i;
+                electron.position.x = Math.cos(angle) * config.radius;
+                electron.position.z = Math.sin(angle) * config.radius;
+                electron.userData.angle = angle;
+                electron.userData.speed = 0.005 / (shellIndex + 1);
+                shellGroup.add(electron);
+            }
+
+            scene.add(shellGroup);
+            electronShells.push(shellGroup);
+        });
+
+        // Camera position
+        camera.position.z = 50;
+
+        // Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Nucleus rotation
+            nucleus.rotation.x += 0.001;
+            nucleus.rotation.y += 0.001;
+
+            // Electron movement
+            electronShells.forEach((shell, shellIndex) => {
+                shell.children.slice(1).forEach((electron, i) => {
+                    electron.userData.angle += electron.userData.speed;
+                    electron.position.x = Math.cos(electron.userData.angle) * shellConfig[shellIndex].radius;
+                    electron.position.z = Math.sin(electron.userData.angle) * shellConfig[shellIndex].radius;
+                });
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
