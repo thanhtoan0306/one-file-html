@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        button {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #3a3a3a;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Nuclear Fission Simulation<br>Uranium-235</div>
+    <div id="controls">
+        <button id="startBtn">Start Fission</button>
+        <button id="pauseBtn">Pause</button>
+        <button id="resetBtn">Reset</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // State management
+        let state = 'ready'; // ready, firing, splitting, split
+        let isPaused = false;
+        let time = 0;
+
+        // Create starry background
+        const starGeometry = new THREE.BufferGeometry();
+        const starVertices = [];
+        for(let i = 0; i < 5000; i++) {
+            const x = (Math.random() - 0.5) * 2000;
+            const y = (Math.random() - 0.5) * 2000;
+            const z = (Math.random() - 0.5) * 2000;
+            starVertices.push(x, y, z);
+        }
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0xFFFFFF, size: 0.1 });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        // Materials
+        const protonMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xFF0000, 
+            emissive: 0x330000,
+            shininess: 100 
+        });
+        const neutronMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x0000FF, 
+            emissive: 0x000033,
+            shininess: 100 
+        });
+        const incomingNeutronMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x888888,
+            emissive: 0x222222,
+            shininess: 100 
+        });
+
+        // Geometries
+        const particleGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+        
+        // Create nucleus group
+        const nucleusGroup = new THREE.Group();
+        scene.add(nucleusGroup);
+
+        // Function to create initial nucleus
+        function createNucleus() {
+            while(nucleusGroup.children.length > 0) {
+                nucleusGroup.remove(nucleusGroup.children[0]);
+            }
+
+            // Add protons and neutrons
+            for(let i = 0; i < 92; i++) { // 92 protons
+                const proton = new THREE.Mesh(particleGeometry, protonMaterial);
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 0.5;
+                proton.position.set(
+                    Math.cos(angle) * radius,
+                    Math.sin(angle) * radius,
+                    (Math.random() - 0.5) * radius
+                );
+                nucleusGroup.add(proton);
+            }
+
+            for(let i = 0; i < 143; i++) { // 143 neutrons
+                const neutron = new THREE.Mesh(particleGeometry, neutronMaterial);
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 0.5;
+                neutron.position.set(
+                    Math.cos(angle) * radius,
+                    Math.sin(angle) * radius,
+                    (Math.random() - 0.5) * radius
+                );
+                nucleusGroup.add(neutron);
+            }
+        }
+
+        // Create incoming neutron
+        const incomingNeutron = new THREE.Mesh(particleGeometry, incomingNeutronMaterial);
+        incomingNeutron.position.set(-5, 0, 0);
+        scene.add(incomingNeutron);
+
+        // Fragment groups
+        const fragment1 = new THREE.Group();
+        const fragment2 = new THREE.Group();
+        scene.add(fragment1);
+        scene.add(fragment2);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x222222);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xFFFFFF, 1);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        // Camera position
+        camera.position.z = 8;
+
+        // Button controls
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        startBtn.addEventListener('click', () => {
+            if(state === 'ready') {
+                state = 'firing';
+                startBtn.disabled = true;
+            }
+        });
+
+        pauseBtn.addEventListener('click', () => {
+            isPaused = !isPaused;
+            pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+        });
+
+        resetBtn.addEventListener('click', () => {
+            state = 'ready';
+            time = 0;
+            createNucleus();
+            incomingNeutron.position.set(-5, 0, 0);
+            fragment1.visible = false;
+            fragment2.visible = false;
+            startBtn.disabled = false;
+        });
+
+        // Initialize
+        createNucleus();
+        fragment1.visible = false;
+        fragment2.visible = false;
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if(isPaused) return;
+
+            time += 0.01;
+
+            // Nucleus wobble
+            if(state === 'ready' || state === 'firing') {
+                const wobble = Math.sin(time * 2) * 0.02;
+                nucleusGroup.scale.set(1 + wobble, 1 + wobble, 1 + wobble);
+                nucleusGroup.rotation.y += 0.005;
+            }
+
+            // Incoming neutron animation
+            if(state === 'firing') {
+                incomingNeutron.position.x += 0.05;
+                
+                // Check for collision
+                if(incomingNeutron.position.x > -0.5) {
+                    state = 'splitting';
+                    
+                    // Create fragments
+                    const particles = nucleusGroup.children.slice();
+                    particles.forEach((particle, i) => {
+                        const clone = particle.clone();
+                        if(i < particles.length * 0.6) {
+                            fragment1.add(clone);
+                        } else {
+                            fragment2.add(clone);
+                        }
+                    });
+                    
+                    nucleusGroup.visible = false;
+                    incomingNeutron.visible = false;
+                    fragment1.visible = true;
+                    fragment2.visible = true;
+                    fragment1.position.copy(nucleusGroup.position);
+                    fragment2.position.copy(nucleusGroup.position);
+                }
+            }
+
+            // Fragment separation
+            if(state === 'splitting') {
+                fragment1.position.x += 0.04;
+                fragment1.position.y += 0.02;
+                fragment2.position.x -= 0.04;
+                fragment2.position.y -= 0.02;
+                
+                fragment1.rotation.z += 0.02;
+                fragment2.rotation.z -= 0.02;
+
+                if(fragment1.position.x > 3) {
+                    state = 'split';
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start animation
+        animate();
+    </script>
+</body>
+</html>

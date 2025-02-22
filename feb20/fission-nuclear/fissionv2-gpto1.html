@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nuclear Fission Chain Reaction</title>
+  <!-- Import Three.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+
+  <style>
+    /* ===========================================================
+       CSS for Page Layout, Starry Background, and Basic Styling
+       =========================================================== */
+
+    /* Remove body margin & padding, set height to 100% */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #000; /* fallback background */
+    }
+
+    /* A cosmic, purple-to-black gradient background */
+    body {
+      background: radial-gradient(circle at center, #1a001f 0%, #000000 80%);
+      font-family: sans-serif;
+    }
+
+    /* Container for the Three.js scene */
+    #scene-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Twinkling stars (using a layered background approach):
+       We'll overlay two layers of stars with slight different sizes & speeds.
+       For clarity, we use only one layer of star generation in CSS, repeated, to mimic 300 stars. */
+    #stars {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      pointer-events: none; /* so we can click/drag if needed in the future */
+      z-index: 1;
+      opacity: 0.8;
+    }
+
+    /* We'll create a repeating star pattern with multiple radial gradients.
+       This is a simplified approach. Each radial gradient can simulate a star. */
+    #stars:after {
+      content: "";
+      position: absolute;
+      width: 3000px;
+      height: 3000px;
+      background: radial-gradient(2px 2px at random random, #fff, transparent 40%) repeat;
+      /* We'll generate an approximation of many stars by layering. 
+         In a real scenario, you could script the star pattern for better distribution. */
+      animation: moveStars 100s linear infinite;
+    }
+
+    /* Animate the star field to give a subtle twinkle or drift effect.
+       You can adjust the animation for a more dynamic effect if you like. */
+    @keyframes moveStars {
+      from {
+        transform: translateX(0) translateY(0);
+      }
+      to {
+        transform: translateX(-500px) translateY(-500px);
+      }
+    }
+
+    /* Adjust star patterns or layering as desired for more elaborate star fields. */
+  </style>
+</head>
+
+<body>
+  <div id="scene-container"></div>
+  <div id="stars"></div>
+
+  <script>
+    /************************************************************
+     * CORE SCENE VARIABLES & SETUP
+     ************************************************************/
+    let scene, camera, renderer;
+    let clock, delta;
+    let neutron; // single incoming neutron
+    let neutronSpeed = 0.025; // initial speed, will accelerate
+    let neutronAcceleration = 0.0001; // acceleration per frame
+
+    // We'll store the eight U-235 nuclei in an array
+    const nuclei = [];
+    const NUM_NUCLEI = 8;
+
+    // For collision/fission checks
+    const NUCLEUS_RADIUS = 2; // approximate radius for each nucleus cluster
+    const COLLISION_RADIUS = 2.5; // threshold for collisions with neutrons
+
+    // Flags and arrays for chain reaction
+    const activeNeutrons = []; // tracks free neutrons in the scene
+    const explosionParticles = []; // array for storing fiery explosion particle systems
+    const shockwaves = []; // track shockwave meshes
+    let allFissioned = false; // track if all nuclei are done
+
+    // Particle settings for explosion
+    const EXPLOSION_PARTICLE_COUNT = 100;
+    const EXPLOSION_PARTICLE_SPEED = 0.1;
+    const NEUTRONS_PER_FISSION = 4;
+
+    // Material references to reuse geometry and materials for performance
+    let protonMaterial, neutronMaterial, fragmentMaterial, explosionParticleMaterial;
+
+    init();
+    animate();
+
+    /************************************************************
+     * INITIALIZATION
+     ************************************************************/
+    function init() {
+      // Create scene
+      scene = new THREE.Scene();
+
+      // Create camera
+      camera = new THREE.PerspectiveCamera(
+        55, // FOV
+        window.innerWidth / window.innerHeight, // aspect ratio
+        0.1, // near
+        1000 // far
+      );
+      camera.position.set(0, 0, 30);
+
+      // Set up renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.getElementById('scene-container').appendChild(renderer.domElement);
+
+      // Create a bright point light in the center to cast dramatic shadows
+      const pointLight = new THREE.PointLight(0xffffff, 1.5, 100);
+      pointLight.position.set(0, 0, 0);
+      scene.add(pointLight);
+
+      // Add a subtle ambient light
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+      scene.add(ambientLight);
+
+      // Create shared geometries/materials for protons, neutrons, etc.
+      createSharedMaterials();
+
+      // Build eight U-235 nuclei in random positions
+      for (let i = 0; i < NUM_NUCLEI; i++) {
+        createNucleus(i);
+      }
+
+      // Create incoming neutron
+      createIncomingNeutron();
+
+      // Use a clock for time-based updates (for dynamic effects)
+      clock = new THREE.Clock();
+
+      // Handle window resizing
+      window.addEventListener('resize', onWindowResize, false);
+    }
+
+    /************************************************************
+     * CREATE SHARED MATERIALS
+     * (Re-use geometry/material for better performance)
+     ************************************************************/
+    function createSharedMaterials() {
+      const sphereGeom = new THREE.SphereGeometry(0.12, 8, 8);
+
+      // Protons: Vibrant Red
+      protonMaterial = new THREE.MeshPhongMaterial({
+        color: 0xff0000,
+        emissive: 0x770000,
+        emissiveIntensity: 0.5
+      });
+
+      // Neutrons: Deep Blue
+      neutronMaterial = new THREE.MeshPhongMaterial({
+        color: 0x0000ff,
+        emissive: 0x000077,
+        emissiveIntensity: 0.5
+      });
+
+      // Fragment: Vivid Yellow
+      fragmentMaterial = new THREE.MeshPhongMaterial({
+        color: 0xffff00,
+        emissive: 0x777700,
+        emissiveIntensity: 0.7
+      });
+
+      // Explosion Particles: Glowing Orange
+      explosionParticleMaterial = new THREE.MeshPhongMaterial({
+        color: 0xff8800,
+        emissive: 0xff4400,
+        emissiveIntensity: 0.9
+      });
+    }
+
+    /************************************************************
+     * CREATE A NUCLEUS (U-235)
+     * Each nucleus: 92 protons (red) + 143 neutrons (blue),
+     * plus a glowing boundary or subtle cyan aura.
+     ************************************************************/
+    function createNucleus(index) {
+      const nucleusGroup = new THREE.Group();
+      scene.add(nucleusGroup);
+
+      // Random position in some range for each nucleus
+      const range = 25; // how far we can place them from center
+      const x = (Math.random() - 0.5) * range;
+      const y = (Math.random() - 0.5) * range;
+      const z = (Math.random() - 0.5) * range;
+      nucleusGroup.position.set(x, y, z);
+
+      // Build protons & neutrons (spheres) within a certain radius
+      const protonGeom = new THREE.SphereGeometry(0.15, 8, 8);
+      const neutronGeom = new THREE.SphereGeometry(0.15, 8, 8);
+
+      // Add 92 protons
+      for (let p = 0; p < 92; p++) {
+        const mesh = new THREE.Mesh(protonGeom, protonMaterial);
+        randomPositionInSphere(mesh, NUCLEUS_RADIUS);
+        nucleusGroup.add(mesh);
+      }
+      // Add 143 neutrons
+      for (let n = 0; n < 143; n++) {
+        const mesh = new THREE.Mesh(neutronGeom, neutronMaterial);
+        randomPositionInSphere(mesh, NUCLEUS_RADIUS);
+        nucleusGroup.add(mesh);
+      }
+
+      // Create a faint cyan boundary sphere for glow/wobble
+      const boundaryGeom = new THREE.SphereGeometry(NUCLEUS_RADIUS + 0.3, 32, 32);
+      const boundaryMat = new THREE.MeshPhongMaterial({
+        color: 0x00ffff,
+        emissive: 0x009999,
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.3
+      });
+      const boundarySphere = new THREE.Mesh(boundaryGeom, boundaryMat);
+      nucleusGroup.add(boundarySphere);
+
+      // Store data about this nucleus
+      nucleusGroup.userData = {
+        fissioned: false // track if this nucleus has already been split
+      };
+
+      nuclei.push(nucleusGroup);
+    }
+
+    // Utility to place an object randomly within a given radius
+    function randomPositionInSphere(mesh, radius) {
+      const u = Math.random();
+      const v = Math.random();
+      const theta = 2 * Math.PI * u;
+      const phi = Math.acos(2 * v - 1);
+      const r = radius * Math.cbrt(Math.random()); // ensures uniform distribution
+
+      const sinPhi = Math.sin(phi);
+      mesh.position.x = r * sinPhi * Math.cos(theta);
+      mesh.position.y = r * sinPhi * Math.sin(theta);
+      mesh.position.z = r * Math.cos(phi);
+    }
+
+    /************************************************************
+     * CREATE THE INCOMING NEUTRON
+     ************************************************************/
+    function createIncomingNeutron() {
+      const neutronGeom = new THREE.SphereGeometry(0.2, 8, 8);
+      const neutronMat = new THREE.MeshPhongMaterial({
+        color: 0x888888,
+        emissive: 0x444444,
+        emissiveIntensity: 0.5
+      });
+      neutron = new THREE.Mesh(neutronGeom, neutronMat);
+
+      // Start far from the center on the negative z-axis
+      neutron.position.set(0, 0, -50);
+      scene.add(neutron);
+
+      // Also store a velocity vector, so it can accelerate
+      neutron.userData.velocity = new THREE.Vector3(0, 0, 1);
+      activeNeutrons.push(neutron);
+    }
+
+    /************************************************************
+     * ANIMATION LOOP
+     ************************************************************/
+    function animate() {
+      requestAnimationFrame(animate);
+      delta = clock.getDelta();
+
+      // Only update if not all have fissioned or if there are still active neutrons
+      if (!allFissioned || activeNeutrons.length > 0 || explosionParticles.length > 0) {
+        update();
+      }
+      render();
+    }
+
+    function update() {
+      // Rotate the entire scene for an immersive 3D effect
+      scene.rotation.y += 0.01;
+
+      // Update nuclei wobble & scale (for a more energetic look)
+      nuclei.forEach(nucleus => {
+        if (!nucleus.userData.fissioned) {
+          const scaleFactor = 1 + Math.sin(Date.now() * 0.003) * 0.02;
+          nucleus.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        }
+      });
+
+      // Update all active neutrons
+      for (let i = 0; i < activeNeutrons.length; i++) {
+        const n = activeNeutrons[i];
+        // Accelerate it a bit
+        n.userData.velocity.z += neutronAcceleration;
+        // Move neutron
+        n.position.add(n.userData.velocity);
+
+        // Check collisions with any nucleus that hasn't fissioned yet
+        for (let j = 0; j < nuclei.length; j++) {
+          const nucleus = nuclei[j];
+          if (!nucleus.userData.fissioned) {
+            const distance = n.position.distanceTo(nucleus.position);
+            if (distance < COLLISION_RADIUS) {
+              // Trigger fission
+              fissionNucleus(nucleus);
+              // This neutron is consumed by the collision, so remove it
+              scene.remove(n);
+              activeNeutrons.splice(i, 1);
+              i--; // adjust index
+              break;
+            }
+          }
+        }
+      }
+
+      // Update explosion particle systems
+      updateExplosionParticles();
+
+      // Update shockwaves
+      updateShockwaves();
+
+      // Check if all fissioned
+      checkAllFissioned();
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+    }
+
+    /************************************************************
+     * FISSION PROCESS
+     ************************************************************/
+    function fissionNucleus(nucleus) {
+      // Mark nucleus as fissioned
+      nucleus.userData.fissioned = true;
+
+      // Remove the original from the scene
+      // But first record position so we can spawn fragments there
+      const fissionPos = new THREE.Vector3().copy(nucleus.position);
+      scene.remove(nucleus);
+
+      // Create two fission fragments
+      createFissionFragments(fissionPos);
+
+      // Create fiery explosion (100 orange particles)
+      createExplosion(fissionPos);
+
+      // Create shockwave
+      createShockwave(fissionPos);
+
+      // Release 4 free neutrons that can trigger further chain reactions
+      for (let i = 0; i < NEUTRONS_PER_FISSION; i++) {
+        createFreeNeutron(fissionPos);
+      }
+    }
+
+    // Creates two Barium/Krypton-like fragments in bright yellow
+    function createFissionFragments(position) {
+      // Barium-141 => 56 protons, 85 neutrons
+      const baGroup = createFragmentGroup(56, 85);
+      baGroup.position.copy(position);
+      scene.add(baGroup);
+
+      // Krypton-92 => 36 protons, 56 neutrons
+      const krGroup = createFragmentGroup(36, 56);
+      krGroup.position.copy(position);
+      scene.add(krGroup);
+
+      // Give them random outward velocity
+      baGroup.userData.velocity = randomVelocity(0.05);
+      krGroup.userData.velocity = randomVelocity(0.05);
+
+      // For more realism, we can animate them to move outward & eventually remove them.
+      // We'll just let them drift for now.
+    }
+
+    // Helper to build a fragment group with random distribution of protons/neutrons
+    function createFragmentGroup(protonCount, neutronCount) {
+      const group = new THREE.Group();
+
+      const radius = 1.0; // smaller cluster
+      const protonGeom = new THREE.SphereGeometry(0.12, 8, 8);
+      const neutronGeom = new THREE.SphereGeometry(0.12, 8, 8);
+
+      for (let p = 0; p < protonCount; p++) {
+        const mesh = new THREE.Mesh(protonGeom, fragmentMaterial);
+        randomPositionInSphere(mesh, radius);
+        group.add(mesh);
+      }
+      for (let n = 0; n < neutronCount; n++) {
+        const mesh = new THREE.Mesh(neutronGeom, fragmentMaterial);
+        randomPositionInSphere(mesh, radius);
+        group.add(mesh);
+      }
+
+      // We can animate each update if we choose, but for brevity, we won't store them in an array.
+      return group;
+    }
+
+    // Creates an explosion effect with multiple glowing orange particles
+    function createExplosion(position) {
+      const particles = [];
+      for (let i = 0; i < EXPLOSION_PARTICLE_COUNT; i++) {
+        const geom = new THREE.SphereGeometry(0.08, 8, 8);
+        const mesh = new THREE.Mesh(geom, explosionParticleMaterial);
+        mesh.position.copy(position);
+        mesh.userData.velocity = randomVelocity(EXPLOSION_PARTICLE_SPEED);
+        // We'll track how long they've been alive so we can fade them out
+        mesh.userData.life = 0;
+        mesh.userData.maxLife = 2.0; // seconds
+        scene.add(mesh);
+        particles.push(mesh);
+      }
+      explosionParticles.push(particles);
+    }
+
+    // Update existing explosion particles (move them outward, fade out, remove after life ends)
+    function updateExplosionParticles() {
+      for (let i = 0; i < explosionParticles.length; i++) {
+        const particleArray = explosionParticles[i];
+        let allDone = true;
+
+        for (let j = 0; j < particleArray.length; j++) {
+          const particle = particleArray[j];
+          if (particle) {
+            allDone = false;
+            // Move
+            particle.position.add(particle.userData.velocity);
+            // Increase life
+            particle.userData.life += delta;
+            // Fade out over time
+            const alpha = 1 - (particle.userData.life / particle.userData.maxLife);
+            particle.material.opacity = alpha;
+            particle.material.transparent = true;
+
+            // If life expired, remove from scene
+            if (particle.userData.life >= particle.userData.maxLife) {
+              scene.remove(particle);
+              particleArray[j] = null;
+            }
+          }
+        }
+
+        // If all particles in this group are done, remove the array
+        // We'll check if at least one is left
+        const stillAlive = particleArray.some(p => p !== null);
+        if (!stillAlive) {
+          explosionParticles.splice(i, 1);
+          i--;
+        }
+      }
+    }
+
+    // Creates a shockwave sphere that expands and fades
+    function createShockwave(position) {
+      const geom = new THREE.RingGeometry(0.5, 0.55, 32);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        opacity: 0.8,
+        transparent: true,
+        side: THREE.DoubleSide
+      });
+      const ring = new THREE.Mesh(geom, mat);
+      ring.position.copy(position);
+      // Orient ring to face camera
+      ring.rotation.x = Math.PI / 2;
+
+      ring.userData.scaleSpeed = 5.0; // expansion speed
+      ring.userData.life = 0;
+      ring.userData.maxLife = 1.0; // fade over 1 second
+
+      scene.add(ring);
+      shockwaves.push(ring);
+    }
+
+    // Update shockwaves
+    function updateShockwaves() {
+      for (let i = 0; i < shockwaves.length; i++) {
+        const sw = shockwaves[i];
+        sw.userData.life += delta;
+        // Expand
+        const expansion = 1 + sw.userData.scaleSpeed * sw.userData.life;
+        sw.scale.set(expansion, expansion, expansion);
+        // Fade
+        const alpha = 1 - (sw.userData.life / sw.userData.maxLife);
+        sw.material.opacity = alpha;
+
+        if (sw.userData.life >= sw.userData.maxLife) {
+          scene.remove(sw);
+          shockwaves.splice(i, 1);
+          i--;
+        }
+      }
+    }
+
+    // Create free neutron at a given position
+    // This neutron can collide with other nuclei
+    function createFreeNeutron(position) {
+      const geom = new THREE.SphereGeometry(0.15, 8, 8);
+      const mat = new THREE.MeshPhongMaterial({
+        color: 0xaaaaaa,
+        emissive: 0x555555,
+        emissiveIntensity: 0.5
+      });
+      const freeN = new THREE.Mesh(geom, mat);
+      freeN.position.copy(position);
+      freeN.userData.velocity = randomVelocity(0.3);
+      scene.add(freeN);
+      activeNeutrons.push(freeN);
+    }
+
+    // Generate a random velocity vector in 3D with given max speed
+    function randomVelocity(speed) {
+      const vx = (Math.random() - 0.5) * 2 * speed;
+      const vy = (Math.random() - 0.5) * 2 * speed;
+      const vz = (Math.random() - 0.5) * 2 * speed;
+      return new THREE.Vector3(vx, vy, vz);
+    }
+
+    /************************************************************
+     * CHECK IF ALL NUCLEI HAVE FISSIONED
+     ************************************************************/
+    function checkAllFissioned() {
+      if (allFissioned) return;
+      let countFissioned = 0;
+      for (let i = 0; i < nuclei.length; i++) {
+        if (nuclei[i].userData.fissioned) {
+          countFissioned++;
+        }
+      }
+      // If all are fissioned, set the flag
+      if (countFissioned === nuclei.length) {
+        allFissioned = true;
+      }
+    }
+
+    /************************************************************
+     * HANDLE WINDOW RESIZE
+     ************************************************************/
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</body>
+</html>

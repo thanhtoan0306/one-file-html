@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Replication Simulation</title>
+    <style>
+        /* Full-page setup */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        /* Canvas styling */
+        #dnaCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-color: #111;
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas for Three.js rendering -->
+    <canvas id="dnaCanvas"></canvas>
+
+    <!-- Three.js library CDN (version r140) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+    <!-- OrbitControls CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Custom simulation code -->
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('dnaCanvas'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // OrbitControls for interaction
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        // Create initial DNA double helix
+        function createDNA(length) {
+            const dnaGroup = new THREE.Group();
+            const radius = 1;
+            const heightStep = 0.2;
+
+            // Materials for backbones and bases
+            const backbone1Mat = new THREE.MeshPhongMaterial({ color: 0x0000ff }); // Blue
+            const backbone2Mat = new THREE.MeshPhongMaterial({ color: 0x800080 }); // Purple
+            const baseMaterials = {
+                A: new THREE.MeshPhongMaterial({ color: 0xff0000 }), // Red
+                T: new THREE.MeshPhongMaterial({ color: 0x00ff00 }), // Green
+                C: new THREE.MeshPhongMaterial({ color: 0xffff00 }), // Yellow
+                G: new THREE.MeshPhongMaterial({ color: 0x0000ff })  // Blue
+            };
+
+            // Backbone geometry
+            const backboneGeo = new THREE.CylinderGeometry(0.1, 0.1, heightStep, 8);
+            const baseGeo = new THREE.SphereGeometry(0.15, 16, 16);
+
+            for (let i = 0; i < length; i++) {
+                const angle = i * 0.5;
+                const y = i * heightStep;
+
+                // Backbone 1
+                const backbone1 = new THREE.Mesh(backboneGeo, backbone1Mat);
+                backbone1.position.set(radius * Math.cos(angle), y, radius * Math.sin(angle));
+                dnaGroup.add(backbone1);
+
+                // Backbone 2
+                const backbone2 = new THREE.Mesh(backboneGeo, backbone2Mat);
+                backbone2.position.set(radius * Math.cos(angle + Math.PI), y, radius * Math.sin(angle + Math.PI));
+                dnaGroup.add(backbone2);
+
+                // Base pair (random A-T or C-G)
+                const pair = Math.random() < 0.5 ? ['A', 'T'] : ['C', 'G'];
+                const base1 = new THREE.Mesh(baseGeo, baseMaterials[pair[0]]);
+                const base2 = new THREE.Mesh(baseGeo, baseMaterials[pair[1]]);
+                const midX = radius * Math.cos(angle) * 0.5;
+                const midZ = radius * Math.sin(angle) * 0.5;
+                base1.position.set(midX, y, midZ);
+                base2.position.set(-midX, y, -midZ);
+                dnaGroup.add(base1, base2);
+
+                // Connecting line between bases
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                    base1.position, base2.position
+                ]);
+                const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffffff }));
+                dnaGroup.add(line);
+            }
+
+            dnaGroup.userData.length = length; // Store length for later use
+            return dnaGroup;
+        }
+
+        // Create replication fork
+        function createReplicationFork(dna, separationPoint) {
+            const forkGroup = new THREE.Group();
+            const length = dna.userData.length;
+            const radius = 1;
+            const heightStep = 0.2;
+
+            // Materials
+            const backboneMat = new THREE.MeshPhongMaterial({ color: 0x00ffff }); // Cyan for new strands
+            const baseMaterials = {
+                A: new THREE.MeshPhongMaterial({ color: 0xff0000 }),
+                T: new THREE.MeshPhongMaterial({ color: 0x00ff00 }),
+                C: new THREE.MeshPhongMaterial({ color: 0xffff00 }),
+                G: new THREE.MeshPhongMaterial({ color: 0x0000ff })
+            };
+
+            for (let i = 0; i < length; i++) {
+                const angle = i * 0.5;
+                const y = i * heightStep;
+                const separationFactor = Math.max(0, (i - separationPoint) * 0.1);
+
+                // Original strands splitting
+                const backbone1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, heightStep, 8), dna.children[i * 3].material);
+                const backbone2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, heightStep, 8), dna.children[i * 3 + 1].material);
+                backbone1.position.set(
+                    radius * Math.cos(angle) + separationFactor,
+                    y,
+                    radius * Math.sin(angle) + separationFactor
+                );
+                backbone2.position.set(
+                    radius * Math.cos(angle + Math.PI) - separationFactor,
+                    y,
+                    radius * Math.sin(angle + Math.PI) - separationFactor
+                );
+                forkGroup.add(backbone1, backbone2);
+
+                // Base pairs
+                if (i < separationPoint) {
+                    const base1 = dna.children[i * 3 + 2].clone();
+                    const base2 = dna.children[i * 3 + 3].clone();
+                    forkGroup.add(base1, base2);
+                    const lineGeo = new THREE.BufferGeometry().setFromPoints([base1.position, base2.position]);
+                    forkGroup.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffffff })));
+                } else {
+                    // New bases for replication
+                    const pair = Math.random() < 0.5 ? ['A', 'T'] : ['C', 'G'];
+                    const base1 = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), baseMaterials[pair[0]]);
+                    const base2 = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), baseMaterials[pair[1]]);
+                    base1.position.set(backbone1.position.x * 0.5, y, backbone1.position.z * 0.5);
+                    base2.position.set(backbone2.position.x * 0.5, y, backbone2.position.z * 0.5);
+                    base1.scale.set(0, 0, 0); // Start small for animation
+                    base2.scale.set(0, 0, 0);
+                    forkGroup.add(base1, base2);
+                }
+            }
+
+            return forkGroup;
+        }
+
+        // Animation function
+        function animateReplication(dnaGroup, forkGroup, speed) {
+            let separationPoint = 0;
+            let currentFork = null;
+
+            function update() {
+                if (separationPoint < dnaGroup.userData.length) {
+                    separationPoint += speed;
+                    if (currentFork) scene.remove(currentFork);
+                    currentFork = createReplicationFork(dnaGroup, Math.floor(separationPoint));
+                    scene.add(currentFork);
+
+                    // Animate new base pair growth
+                    currentFork.children.forEach(child => {
+                        if (child.scale.x < 1) {
+                            child.scale.addScalar(0.05);
+                        }
+                    });
+
+                    dnaGroup.visible = false;
+                }
+            }
+
+            return update;
+        }
+
+        // Main execution
+        try {
+            const dnaLength = 30;
+            const dna = createDNA(dnaLength);
+            scene.add(dna);
+            camera.position.set(0, dnaLength * 0.1, 10);
+            controls.update();
+
+            const forkGroup = createReplicationFork(dna, 0);
+            const animateFork = animateReplication(dna, forkGroup, 0.1);
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                animateFork();
+                renderer.render(scene, camera);
+            }
+            animate();
+        } catch (error) {
+            console.error('Error in DNA simulation:', error);
+        }
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

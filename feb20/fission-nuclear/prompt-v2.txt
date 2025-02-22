@@ -1,0 +1,35 @@
+"Develop a single, exhilarating HTML file that leverages CSS and Three.js to simulate an explosive nuclear fission chain reaction, delivering an interactive and visually stunning experience. The simulation should include:
+Multiple Nuclei and Explosive Chain Reaction
+Eight Uranium-235 nuclei in total, each depicted as a large, pulsating sphere containing 92 protons (vibrant red) and 143 neutrons (deep blue), randomly distributed within their spherical boundaries.
+Position these nuclei at varied 3D locations in the scene to maximize reaction potential.
+As each nucleus undergoes fission, release multiple neutrons to trigger a rapid, cascading chain reaction across all remaining nuclei, ensuring a spectacular sequence of events.
+Initial Nucleus Behavior
+Display all Uranium-235 nuclei with a subtle cyan glow and dynamic wobbling motion to emphasize their unstable, energetic state.
+Enhance visual appeal with slight rotation for a lively, organic feel.
+Fission Trigger
+Introduce a single incoming neutron (metallic gray sphere) that initiates the chain reaction by accelerating toward the central nucleus from a distance.
+Add a trailing effect to the neutron for a dramatic approach, amplifying anticipation.
+Fission Process
+Upon collision, the targeted nucleus splits into two glowing, pulsating fragments (e.g., Barium-141 and Krypton-92), each a vivid yellow with a mix of protons and neutrons.
+Fragments separate with a burst of energy, visualized through:
+An expanding, fading yellow shockwave.
+A dense spray of 100 glowing orange particles for a fiery explosion effect.
+Release 4 neutrons per fission, scattering outward at high speed to maximize chain reaction potential.
+Chain Reaction
+Neutrons from each fission event collide with any of the remaining seven nuclei, triggering additional fissions with a larger collision radius for frequent reactions.
+Achieve a near-continuous cascade of splits until all nuclei are consumed, creating a thrilling domino effect.
+Visual Effects
+Use a dark, cosmic background (crafted in CSS) with a rich purple-to-black gradient.
+Include 300 twinkling stars with a subtle animation for a mesmerizing, space-like ambiance.
+Implement dynamic lighting with a bright central point light to cast dramatic shadows and highlight fission events.
+Add vibrant emissive properties to protons, neutrons, and fragments for a glowing, radiant appearance.
+Animation & Interactivity
+Drive smooth, physics-inspired motion for the incoming neutron (accelerating over time), fragment trajectories, and neutron scattering.
+Rotate the entire scene at a brisk pace for an immersive 3D experience.
+Enhance nuclei with faster wobbling and scaling effects for heightened energy.
+Animate fragments to shrink slightly as they move, adding realism to energy dissipation.
+Performance & Responsiveness
+Optimize rendering with Three.js best practices (e.g., reused geometries, efficient material management, controlled particle counts).
+Ensure smooth performance across screen sizes with responsive resizing, avoiding lag or layout issues.
+Use the Three.js library via CDN, define the starry background and styling with CSS, and include concise comments explaining core mechanics.
+The final result should be an awe-inspiring, educational simulation of nuclear fission, showcasing a single neutron igniting a breathtaking chain reaction across eight Uranium-235 nuclei, with enhanced visuals like shockwaves, glowing trails, and dense particle bursts making it a captivating spectacle."

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DNA Replication Simulation</title>
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #111;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    
+    <!-- Load Three.js and OrbitControls from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('dnaCanvas'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        // OrbitControls setup
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.z = 30;
+        controls.update();
+
+        // DNA base colors
+        const colors = {
+            A: 0xff0000, // Red for Adenine
+            T: 0x00ff00, // Green for Thymine
+            C: 0x0000ff, // Blue for Cytosine
+            G: 0xffff00  // Yellow for Guanine
+        };
+
+        // Function to create DNA
+        function createDNA(length) {
+            const dnaGroup = new THREE.Group();
+            const backboneGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1, 8);
+            const baseGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            
+            // Materials for backbones
+            const backbone1Material = new THREE.MeshPhongMaterial({ color: 0x8844ff });
+            const backbone2Material = new THREE.MeshPhongMaterial({ color: 0x44ff88 });
+
+            // Create double helix
+            for (let i = 0; i < length; i++) {
+                const angle = (i / length) * Math.PI * 4;
+                const y = i - length / 2;
+                
+                // Create backbones
+                const backbone1 = new THREE.Mesh(backboneGeometry, backbone1Material);
+                const backbone2 = new THREE.Mesh(backboneGeometry, backbone2Material);
+                
+                backbone1.position.set(
+                    Math.cos(angle) * 2,
+                    y,
+                    Math.sin(angle) * 2
+                );
+                backbone2.position.set(
+                    Math.cos(angle + Math.PI) * 2,
+                    y,
+                    Math.sin(angle + Math.PI) * 2
+                );
+                
+                backbone1.rotation.x = Math.PI / 2;
+                backbone2.rotation.x = Math.PI / 2;
+                
+                dnaGroup.add(backbone1);
+                dnaGroup.add(backbone2);
+
+                // Create base pairs
+                const baseType = Math.random() < 0.5 ? 'A' : 'C';
+                const complementType = baseType === 'A' ? 'T' : 'G';
+                
+                const base1 = new THREE.Mesh(
+                    baseGeometry,
+                    new THREE.MeshPhongMaterial({ color: colors[baseType] })
+                );
+                const base2 = new THREE.Mesh(
+                    baseGeometry,
+                    new THREE.MeshPhongMaterial({ color: colors[complementType] })
+                );
+                
+                base1.position.set(
+                    Math.cos(angle) * 1.5,
+                    y,
+                    Math.sin(angle) * 1.5
+                );
+                base2.position.set(
+                    Math.cos(angle + Math.PI) * 1.5,
+                    y,
+                    Math.sin(angle + Math.PI) * 1.5
+                );
+                
+                dnaGroup.add(base1);
+                dnaGroup.add(base2);
+            }
+            
+            return dnaGroup;
+        }
+
+        // Function to create replication fork
+        function createReplicationFork(dna, separationPoint) {
+            const forkGroup = dna.clone();
+            const children = forkGroup.children;
+            
+            for (let i = 0; i < children.length; i += 4) {
+                const y = (i / 4) - children.length / 8;
+                
+                if (y >= separationPoint) {
+                    const separation = (y - separationPoint) * 0.5;
+                    children[i].position.x += separation;
+                    children[i + 1].position.x -= separation;
+                    children[i + 2].position.x += separation * 0.75;
+                    children[i + 3].position.x -= separation * 0.75;
+                }
+            }
+            
+            return forkGroup;
+        }
+
+        // Animation variables
+        let dna = createDNA(20);
+        scene.add(dna);
+        let separationPoint = -10;
+        let fork = null;
+
+        // Animation function
+        function animateReplication() {
+            if (separationPoint < 10) {
+                if (fork) scene.remove(fork);
+                fork = createReplicationFork(dna, separationPoint);
+                scene.add(fork);
+                separationPoint += 0.05;
+            }
+            
+            // Rotate DNA slightly
+            dna.rotation.y += 0.005;
+            if (fork) fork.rotation.y += 0.005;
+            
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animateReplication);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start animation
+        animateReplication();
+    </script>
+</body>
+</html>

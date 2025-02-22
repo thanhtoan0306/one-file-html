@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuclear Fission Simulation</title>
+    <style>
+        /* Cosmic laboratory background */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1a1a3d 0%, #000000 70%);
+        }
+        canvas {
+            display: block;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background: #1a3d5c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2a5d8c;
+        }
+    </style>
+</head>
+<body>
+    <!-- Control Buttons -->
+    <div id="controls">
+        <button onclick="startFission()">Start</button>
+        <button onclick="resetSimulation()">Reset</button>
+        <button onclick="togglePause()">Pause</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        // Scene Setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const centralLight = new THREE.PointLight(0xffffff, 1, 500);
+        centralLight.position.set(100, 100, 100);
+        scene.add(centralLight);
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+        scene.add(ambientLight);
+
+        // Nucleus Setup (U-235: 92 protons, 143 neutrons)
+        const nucleusGroup = new THREE.Group();
+        const nucleusRadius = 20;
+        const protonGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+        const neutronGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+        const protonMaterial = new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x660000 });
+        const neutronMaterial = new THREE.MeshPhongMaterial({ color: 0x3333ff, emissive: 0x000066 });
+
+        function createNucleusParticles() {
+            nucleusGroup.children = []; // Clear previous particles
+            for (let i = 0; i < 92; i++) { // Protons
+                const proton = new THREE.Mesh(protonGeometry, protonMaterial);
+                positionInSphere(proton, nucleusRadius);
+                nucleusGroup.add(proton);
+            }
+            for (let i = 0; i < 143; i++) { // Neutrons
+                const neutron = new THREE.Mesh(neutronGeometry, neutronMaterial);
+                positionInSphere(neutron, nucleusRadius);
+                nucleusGroup.add(neutron);
+            }
+            scene.add(nucleusGroup);
+        }
+
+        function positionInSphere(obj, radius) {
+            let pos;
+            do {
+                pos = new THREE.Vector3(
+                    (Math.random() - 0.5) * radius * 2,
+                    (Math.random() - 0.5) * radius * 2,
+                    (Math.random() - 0.5) * radius * 2
+                );
+            } while (pos.length() > radius);
+            obj.position.copy(pos);
+        }
+
+        // Incoming Neutron
+        const neutronTrigger = new THREE.Mesh(
+            new THREE.SphereGeometry(1, 16, 16),
+            new THREE.MeshPhongMaterial({ color: 0x888888, emissive: 0x444444 })
+        );
+        neutronTrigger.position.set(-100, 0, 0);
+        scene.add(neutronTrigger);
+
+        // Fission Fragments and Extra Neutrons
+        let fragments = [];
+        let extraNeutrons = [];
+        const fragmentMaterial = new THREE.MeshPhongMaterial({ color: 0xffffaa, emissive: 0x666600 });
+
+        // State Management
+        let state = 'initial'; // 'initial', 'fission', 'complete'
+        let isPaused = false;
+        let fissionProgress = 0;
+
+        // Animation Loop
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isPaused) return;
+
+            time += 0.01;
+            scene.rotation.y += 0.002; // Subtle rotation
+
+            // Nucleus wobble
+            if (state === 'initial') {
+                nucleusGroup.scale.setScalar(1 + Math.sin(time) * 0.05);
+            }
+
+            // Fission process
+            if (state === 'fission') {
+                fissionProgress += 0.05;
+
+                // Neutron approaches
+                if (fissionProgress < 1) {
+                    neutronTrigger.position.x += fissionProgress * 5;
+                } else if (fissionProgress >= 1 && fissionProgress < 1.1) {
+                    // Collision: Split nucleus
+                    if (fragments.length === 0) {
+                        scene.remove(nucleusGroup);
+                        createFissionFragments();
+                        createExtraNeutrons();
+                    }
+                } else {
+                    // Fragments separate
+                    fragments[0].position.x += 2;
+                    fragments[1].position.x -= 2;
+                    extraNeutrons.forEach((n, i) => {
+                        n.position.add(new THREE.Vector3(
+                            Math.cos(i * 2) * 3,
+                            Math.sin(i * 2) * 3,
+                            Math.random() * 3
+                        ));
+                    });
+                    if (fissionProgress > 3) state = 'complete';
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Fission Fragments (Barium-141 and Krypton-92 approximations)
+        function createFissionFragments() {
+            const frag1 = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 32), fragmentMaterial); // Ba-141
+            const frag2 = new THREE.Mesh(new THREE.SphereGeometry(10, 32, 32), fragmentMaterial); // Kr-92
+            fragments = [frag1, frag2];
+            fragments.forEach(f => scene.add(f));
+        }
+
+        // Extra Neutrons
+        function createExtraNeutrons() {
+            for (let i = 0; i < 3; i++) {
+                const neutron = new THREE.Mesh(neutronGeometry, neutronMaterial);
+                neutron.position.set(0, 0, 0);
+                extraNeutrons.push(neutron);
+                scene.add(neutron);
+            }
+        }
+
+        // Control Functions
+        function startFission() {
+            if (state === 'initial') state = 'fission';
+        }
+
+        function resetSimulation() {
+            state = 'initial';
+            fissionProgress = 0;
+            scene.remove(neutronTrigger);
+            fragments.forEach(f => scene.remove(f));
+            extraNeutrons.forEach(n => scene.remove(n));
+            fragments = [];
+            extraNeutrons = [];
+            neutronTrigger.position.set(-100, 0, 0);
+            scene.add(neutronTrigger);
+            createNucleusParticles();
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.querySelector('#controls button:nth-child(3)').textContent = isPaused ? 'Resume' : 'Pause';
+        }
+
+        // Initial Setup
+        createNucleusParticles();
+        camera.position.z = 200;
+
+        // Responsiveness
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

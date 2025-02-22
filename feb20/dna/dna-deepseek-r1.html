@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DNA Replication Simulation</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #111;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="dnaCanvas"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('dnaCanvas'), antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 5, 5);
+    scene.add(directionalLight);
+
+    // Camera controls
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    camera.position.z = 30;
+
+    // DNA configuration
+    const DNA_CONFIG = {
+      length: 30,         // Number of base pairs
+      radius: 5,          // Helix radius
+      rotation: Math.PI,  // Full helix rotation
+      backboneColors: [0x1e90ff, 0x9370db], // Blue and purple
+      baseColors: {       // Base pair colors
+        A: 0xff4444,      // Adenine (red)
+        T: 0x44ff44,      // Thymine (green)
+        C: 0xffff44,      // Cytosine (yellow)
+        G: 0xff44ff       // Guanine (magenta)
+      }
+    };
+
+    // Create initial DNA double helix
+    function createDNA() {
+      const dnaGroup = new THREE.Group();
+      const angleStep = DNA_CONFIG.rotation / DNA_CONFIG.length;
+      
+      // Create two backbones
+      for (let i = 0; i < 2; i++) {
+        const backbone = new THREE.Group();
+        const material = new THREE.MeshPhongMaterial({ 
+          color: DNA_CONFIG.backboneColors[i] 
+        });
+        
+        // Create backbone segments
+        for (let j = 0; j < DNA_CONFIG.length; j++) {
+          const segment = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.1, 0.5),
+            material
+          );
+          const angle = angleStep * j + (i * Math.PI);
+          segment.position.set(
+            Math.cos(angle) * DNA_CONFIG.radius,
+            j - DNA_CONFIG.length/2,
+            Math.sin(angle) * DNA_CONFIG.radius
+          );
+          segment.rotation.z = angle;
+          backbone.add(segment);
+        }
+        dnaGroup.add(backbone);
+      }
+
+      // Create base pairs
+      for (let i = 0; i < DNA_CONFIG.length; i++) {
+        const baseType = Math.random() < 0.5 ? 'AT' : 'CG';
+        const [base1, base2] = baseType.split('');
+        
+        // Create base pair connectors
+        const basePair = new THREE.Group();
+        const angle = angleStep * i;
+        
+        // First base
+        const baseGeometry = new THREE.SphereGeometry(0.2);
+        const base1Mesh = new THREE.Mesh(baseGeometry, new THREE.MeshPhongMaterial({
+          color: DNA_CONFIG.baseColors[base1]
+        }));
+        base1Mesh.position.set(
+          Math.cos(angle) * DNA_CONFIG.radius * 0.8,
+          i - DNA_CONFIG.length/2,
+          Math.sin(angle) * DNA_CONFIG.radius * 0.8
+        );
+        
+        // Second base
+        const base2Mesh = new THREE.Mesh(baseGeometry, new THREE.MeshPhongMaterial({
+          color: DNA_CONFIG.baseColors[base2]
+        }));
+        base2Mesh.position.set(
+          Math.cos(angle + Math.PI) * DNA_CONFIG.radius * 0.8,
+          i - DNA_CONFIG.length/2,
+          Math.sin(angle + Math.PI) * DNA_CONFIG.radius * 0.8
+        );
+        
+        // Connection line
+        const connector = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            base1Mesh.position.clone(),
+            base2Mesh.position.clone()
+          ]),
+          new THREE.LineBasicMaterial({ color: 0x888888 })
+        );
+        
+        basePair.add(base1Mesh, base2Mesh, connector);
+        dnaGroup.add(basePair);
+      }
+      return dnaGroup;
+    }
+
+    // Create replication fork
+    function createReplicationFork(dna, separationPoint) {
+      const forkGroup = dna.clone();
+      let separateDistance = 0;
+      
+      forkGroup.children.forEach((child, i) => {
+        if (i >= 2) { // Base pairs
+          const yPos = child.position.y + DNA_CONFIG.length/2;
+          if (yPos >= separationPoint) {
+            separateDistance = (yPos - separationPoint) * 0.5;
+            child.position.x += separateDistance;
+            child.children[2].visible = false; // Hide connector
+          }
+        } else { // Backbones
+          child.children.forEach((segment, j) => {
+            const yPos = segment.position.y + DNA_CONFIG.length/2;
+            if (yPos >= separationPoint) {
+              segment.position.x += (i === 0 ? 1 : -1) * separateDistance;
+            }
+          });
+        }
+      });
+      return forkGroup;
+    }
+
+    // Animation variables
+    let separationPoint = 0;
+    let originalDNA = createDNA();
+    let forkDNA = createReplicationFork(originalDNA, separationPoint);
+    scene.add(forkDNA);
+
+    // Add enzymes
+    const polymerase = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5),
+      new THREE.MeshPhongMaterial({ color: 0xffa500 })
+    );
+    scene.add(polymerase);
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // Update replication fork
+      separationPoint += 0.1;
+      if (separationPoint < DNA_CONFIG.length) {
+        scene.remove(forkDNA);
+        forkDNA = createReplicationFork(originalDNA, separationPoint);
+        scene.add(forkDNA);
+      }
+
+      // Animate polymerase
+      polymerase.position.set(
+        Math.cos(Date.now() * 0.001) * 3,
+        separationPoint - DNA_CONFIG.length/2,
+        Math.sin(Date.now() * 0.001) * 3
+      );
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start animation
+    animate();
+  </script>
+</body>
+</html>

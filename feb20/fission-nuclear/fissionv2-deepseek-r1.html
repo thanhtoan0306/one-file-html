@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Nuclear Fission Chain Reaction</title>
+  <style>
+    body { 
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #2b0038, #000000);
+    }
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      animation: twinkle 1s infinite;
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <!-- Star background -->
+  <div id="stars"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Create stars
+    const stars = document.getElementById('stars');
+    for(let i=0; i<300; i++) {
+      const star = document.createElement('div');
+      star.className = 'star';
+      star.style.left = Math.random()*100 + '%';
+      star.style.top = Math.random()*100 + '%';
+      stars.appendChild(star);
+    }
+
+    // Lighting
+    const light = new THREE.PointLight(0xffffff, 2, 100);
+    light.position.set(0,0,0);
+    scene.add(light);
+
+    // Materials
+    const protonMat = new THREE.MeshPhongMaterial({ 
+      color: 0xff4444, emissive: 0xaa2222 
+    });
+    const neutronMat = new THREE.MeshPhongMaterial({ 
+      color: 0x4444ff, emissive: 0x2222aa 
+    });
+    const fragmentMat = new THREE.MeshPhongMaterial({ 
+      color: 0xffff00, emissive: 0xffaa00 
+    });
+
+    // Nuclei creation
+    const nuclei = [];
+    const createNucleus = (pos) => {
+      const nucleus = new THREE.Group();
+      for(let i=0; i<92; i++) { // Protons
+        const proton = new THREE.Mesh(
+          new THREE.SphereGeometry(0.1),
+          protonMat
+        );
+        proton.position.set(...Array(3).fill().map(() => Math.random()*2-1));
+        nucleus.add(proton);
+      }
+      for(let i=0; i<143; i++) { // Neutrons
+        const neutron = new THREE.Mesh(
+          new THREE.SphereGeometry(0.1),
+          neutronMat
+        );
+        neutron.position.set(...Array(3).fill().map(() => Math.random()*2-1));
+        nucleus.add(neutron);
+      }
+      nucleus.position.copy(pos);
+      nucleus.scale.set(3,3,3);
+      scene.add(nucleus);
+      return nucleus;
+    };
+
+    // Create 8 uranium nuclei
+    for(let i=0; i<8; i++) {
+      nuclei.push(createNucleus(new THREE.Vector3(
+        Math.random()*20-10,
+        Math.random()*10-5,
+        Math.random()*20-10
+      )));
+    }
+
+    // Initiate neutron
+    let neutron = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3),
+      new THREE.MeshPhongMaterial({ color: 0x888888 })
+    );
+    neutron.position.set(0, 0, -30);
+    scene.add(neutron);
+
+    // Animation variables
+    let speed = 0.1;
+    let exploded = false;
+    const particles = [];
+    const shockwaves = [];
+
+    // Fission function
+    const triggerFission = (nucleus) => {
+      // Remove nucleus
+      scene.remove(nucleus);
+      nuclei.splice(nuclei.indexOf(nucleus), 1);
+      
+      // Create fragments
+      const fragment1 = createNucleus(nucleus.position.clone());
+      fragment1.scale.set(2,2,2);
+      fragment1.children.forEach(p => p.material = fragmentMat);
+      
+      const fragment2 = createNucleus(nucleus.position.clone());
+      fragment2.scale.set(2,2,2);
+      fragment2.children.forEach(p => p.material = fragmentMat);
+
+      // Create particles
+      for(let i=0; i<100; i++) {
+        const particle = new THREE.Mesh(
+          new THREE.SphereGeometry(0.1),
+          new THREE.MeshBasicMaterial({ color: 0xff6600 })
+        );
+        particle.position.copy(nucleus.position);
+        particle.velocity = new THREE.Vector3(
+          Math.random()-0.5,
+          Math.random()-0.5,
+          Math.random()-0.5
+        ).multiplyScalar(0.5);
+        particles.push(particle);
+        scene.add(particle);
+      }
+
+      // Create shockwave
+      const shockwave = new THREE.Mesh(
+        new THREE.SphereGeometry(1),
+        new THREE.MeshBasicMaterial({ 
+          color: 0xffff00,
+          transparent: true,
+          opacity: 0.7
+        })
+      );
+      shockwave.position.copy(nucleus.position);
+      shockwaves.push({ mesh: shockwave, scale: 1 });
+      scene.add(shockwave);
+    };
+
+    // Animation loop
+    camera.position.z = 30;
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // Neutron movement
+      if(!exploded) {
+        speed *= 1.02;
+        neutron.position.z += speed;
+        
+        // Collision detection
+        nuclei.forEach(nucleus => {
+          if(neutron.position.distanceTo(nucleus.position) < 4) {
+            exploded = true;
+            triggerFission(nucleus);
+            setTimeout(() => scene.remove(neutron), 100);
+          }
+        });
+      }
+
+      // Update particles
+      particles.forEach((p, i) => {
+        p.position.add(p.velocity);
+        p.material.opacity *= 0.97;
+        if(p.material.opacity < 0.1) {
+          scene.remove(p);
+          particles.splice(i, 1);
+        }
+      });
+
+      // Update shockwaves
+      shockwaves.forEach((sw, i) => {
+        sw.scale += 0.5;
+        sw.mesh.scale.set(sw.scale, sw.scale, sw.scale);
+        sw.mesh.material.opacity *= 0.95;
+        if(sw.mesh.material.opacity < 0.1) {
+          scene.remove(sw.mesh);
+          shockwaves.splice(i, 1);
+        }
+      });
+
+      // Rotate scene
+      scene.rotation.y += 0.005;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Responsive handling
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

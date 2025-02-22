@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nuclear Fission Simulation (Three.js)</title>
+  <!-- Include Three.js from a CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+  <style>
+    /* === General Page Styling === */
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      /* Starry-like background (basic approach: dark gradient + star dots) */
+      background: radial-gradient(ellipse at center, #0b0b1f 0%, #000000 80%);
+      font-family: sans-serif;
+      color: #fff;
+    }
+
+    /* === Canvas Container === */
+    #scene-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* === Control Panel === */
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    button {
+      background-color: #222;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 10px 15px;
+      cursor: pointer;
+      outline: none;
+      font-size: 14px;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #444;
+    }
+  </style>
+</head>
+<body>
+  <!-- Scene container -->
+  <div id="scene-container"></div>
+
+  <!-- Control buttons -->
+  <div id="controls">
+    <button id="startBtn">Start</button>
+    <button id="resetBtn">Reset</button>
+    <button id="pauseBtn">Pause</button>
+  </div>
+
+  <script>
+    /************************************************************************
+     * GLOBAL VARIABLES
+     ************************************************************************/
+    let scene, camera, renderer;
+    let nucleusGroup;            // Container for original U-235 nucleus
+    let nucleusBoundary;         // Large sphere representing the nucleus boundary (for wobble/glow)
+    let incomingNeutron;         // The single neutron that triggers fission
+    let fissionFragments = [];   // Arrays to hold the two fission fragments
+    let releasedNeutrons = [];   // Additional neutrons released after fission
+
+    let animationId;             // For storing requestAnimationFrame reference
+    let isPaused = false;        // Pause/Resume toggle
+    let fissionTriggered = false;// Indicates when fission has occurred
+
+    // Set up constants for nucleus composition
+    const PROTON_COUNT = 92;
+    const NEUTRON_COUNT = 143;
+    const TOTAL_NUCLEONS = PROTON_COUNT + NEUTRON_COUNT; // 235
+
+    // Fragment composition example: Barium-141 (56 p, 85 n), Krypton-92 (36 p, 56 n)
+    // + 2 or 3 free neutrons
+    const BA_PROTONS = 56, BA_NEUTRONS = 85; // Barium-141
+    const KR_PROTONS = 36, KR_NEUTRONS = 56; // Krypton-92
+    const FREE_NEUTRONS_COUNT = 2;           // or 3, if you like
+
+    // Positions and speeds
+    let neutronSpeed = 0.03; // Speed for incoming neutron
+    let fissionEnergy = 0.05; // Speed factor for fragment separation
+
+    /************************************************************************
+     * INITIALIZATION
+     ************************************************************************/
+    init();
+    animate();
+
+    function init() {
+      // Create scene
+      scene = new THREE.Scene();
+
+      // Create camera
+      camera = new THREE.PerspectiveCamera(
+        50,                // Field of view
+        window.innerWidth / window.innerHeight, // Aspect ratio
+        0.1,               // Near plane
+        1000               // Far plane
+      );
+      camera.position.z = 10;
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.getElementById("scene-container").appendChild(renderer.domElement);
+
+      // Add some lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+      scene.add(ambientLight);
+
+      // A point light near the center to highlight the nucleus
+      const pointLight = new THREE.PointLight(0xffffff, 1, 50);
+      pointLight.position.set(0, 0, 0);
+      scene.add(pointLight);
+
+      // Create the nucleus group
+      nucleusGroup = new THREE.Group();
+      scene.add(nucleusGroup);
+
+      // Build the U-235 nucleus as random distribution of protons/neutrons
+      buildNucleus();
+
+      // Create a glowing boundary sphere for the nucleus
+      createNucleusBoundary();
+
+      // Create incoming neutron (far off on the z-axis)
+      createIncomingNeutron();
+
+      // Handle window resize
+      window.addEventListener("resize", onWindowResize, false);
+
+      // Set up button interactions
+      document.getElementById("startBtn").addEventListener("click", startFission);
+      document.getElementById("resetBtn").addEventListener("click", resetSimulation);
+      document.getElementById("pauseBtn").addEventListener("click", togglePause);
+    }
+
+    /************************************************************************
+     * NUCLEUS CREATION
+     ************************************************************************/
+    function buildNucleus() {
+      // We'll randomly position 235 small spheres within a certain radius
+      const nucleusRadius = 2; // approximate radius for the cluster
+      const protonGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+      const neutronGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+
+      const protonMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+      const neutronMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+
+      // Add 92 protons
+      for (let i = 0; i < PROTON_COUNT; i++) {
+        const protonMesh = new THREE.Mesh(protonGeometry, protonMaterial);
+        randomPositionInSphere(protonMesh, nucleusRadius);
+        nucleusGroup.add(protonMesh);
+      }
+
+      // Add 143 neutrons
+      for (let i = 0; i < NEUTRON_COUNT; i++) {
+        const neutronMesh = new THREE.Mesh(neutronGeometry, neutronMaterial);
+        randomPositionInSphere(neutronMesh, nucleusRadius);
+        nucleusGroup.add(neutronMesh);
+      }
+    }
+
+    // Helper function: places object in a random position within a sphere
+    function randomPositionInSphere(object, radius) {
+      const u = Math.random();
+      const v = Math.random();
+      const theta = 2 * Math.PI * u;
+      const phi = Math.acos(2 * v - 1);
+      const r = radius * Math.cbrt(Math.random()); // ensures uniform distribution
+
+      const sinPhi = Math.sin(phi);
+      object.position.x = r * sinPhi * Math.cos(theta);
+      object.position.y = r * sinPhi * Math.sin(theta);
+      object.position.z = r * Math.cos(phi);
+    }
+
+    /************************************************************************
+     * NUCLEUS BOUNDARY (GLOW/WOBBLE)
+     ************************************************************************/
+    function createNucleusBoundary() {
+      const boundaryGeom = new THREE.SphereGeometry(2.2, 32, 32);
+      const boundaryMat = new THREE.MeshPhongMaterial({
+        color: 0x44aa88,
+        opacity: 0.3,
+        transparent: true,
+        emissive: 0x229966,
+        emissiveIntensity: 0.5
+      });
+      nucleusBoundary = new THREE.Mesh(boundaryGeom, boundaryMat);
+      nucleusGroup.add(nucleusBoundary);
+    }
+
+    /************************************************************************
+     * INCOMING NEUTRON
+     ************************************************************************/
+    function createIncomingNeutron() {
+      const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+      const material = new THREE.MeshPhongMaterial({ color: 0x888888 });
+      incomingNeutron = new THREE.Mesh(geometry, material);
+      // Position it far away along the z-axis
+      incomingNeutron.position.set(0, 0, -15);
+      scene.add(incomingNeutron);
+    }
+
+    /************************************************************************
+     * ANIMATION LOOP
+     ************************************************************************/
+    function animate() {
+      if (!isPaused) {
+        // Only update if not paused
+        update();
+        render();
+      }
+      animationId = requestAnimationFrame(animate);
+    }
+
+    function update() {
+      // Subtle rotation for a 3D effect
+      nucleusGroup.rotation.y += 0.002;
+
+      // Add a pulsating wobble effect to the nucleus boundary
+      const scaleFactor = 1 + Math.sin(Date.now() * 0.002) * 0.02;
+      nucleusBoundary.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+      // If fission not triggered, move the neutron
+      if (!fissionTriggered) {
+        incomingNeutron.position.z += neutronSpeed;
+        // Check collision with nucleus (simple distance check from origin)
+        const dist = incomingNeutron.position.length();
+        if (dist < 2.2) {
+          // Collision => trigger fission
+          triggerFission();
+        }
+      } else {
+        // If fragments exist, push them outward
+        fissionFragments.forEach((frag) => {
+          frag.group.children.forEach((p) => {
+            p.position.add(frag.velocity);
+          });
+        });
+        // Also move the free neutrons outward
+        releasedNeutrons.forEach((n) => {
+          n.position.add(n.userData.velocity);
+        });
+      }
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+    }
+
+    /************************************************************************
+     * FISSION TRIGGER & PROCESS
+     ************************************************************************/
+    function triggerFission() {
+      fissionTriggered = true;
+      // Hide/remove the original nucleus group
+      nucleusGroup.visible = false;
+
+      // Create the two fission fragments:
+      // Barium-141 (56 protons, 85 neutrons)
+      const baGroup = createFragment(BA_PROTONS, BA_NEUTRONS, 0xff0000, 0x0000ff);
+      // Krypton-92 (36 protons, 56 neutrons)
+      const krGroup = createFragment(KR_PROTONS, KR_NEUTRONS, 0xff0000, 0x0000ff);
+
+      // Assign random outward velocities
+      const baVelocity = new THREE.Vector3(
+        (Math.random() - 0.5) * fissionEnergy,
+        (Math.random() - 0.5) * fissionEnergy,
+        (Math.random() - 0.5) * fissionEnergy
+      );
+      const krVelocity = baVelocity.clone().multiplyScalar(-1); // Opposite-ish direction
+
+      fissionFragments.push({ group: baGroup, velocity: baVelocity });
+      fissionFragments.push({ group: krGroup, velocity: krVelocity });
+
+      // Create & scatter the free neutrons
+      for (let i = 0; i < FREE_NEUTRONS_COUNT; i++) {
+        const neutron = createFreeNeutron();
+        // position them near center
+        neutron.position.set(0, 0, 0);
+        // random velocity
+        neutron.userData.velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * fissionEnergy * 2,
+          (Math.random() - 0.5) * fissionEnergy * 2,
+          (Math.random() - 0.5) * fissionEnergy * 2
+        );
+        releasedNeutrons.push(neutron);
+        scene.add(neutron);
+      }
+
+      // Optional: add a burst effect (e.g., simple glow or sprite)
+      // For brevity, we omit an advanced particle system here.
+    }
+
+    // Create a fragment group with a certain number of protons (red) and neutrons (blue)
+    function createFragment(protonCount, neutronCount, protonColor, neutronColor) {
+      const fragmentGroup = new THREE.Group();
+      scene.add(fragmentGroup);
+
+      const protonGeom = new THREE.SphereGeometry(0.1, 8, 8);
+      const protonMat = new THREE.MeshPhongMaterial({ color: protonColor });
+
+      const neutronGeom = new THREE.SphereGeometry(0.1, 8, 8);
+      const neutronMat = new THREE.MeshPhongMaterial({ color: neutronColor });
+
+      const fragRadius = 1.2; // smaller cluster
+
+      for (let i = 0; i < protonCount; i++) {
+        const p = new THREE.Mesh(protonGeom, protonMat);
+        randomPositionInSphere(p, fragRadius);
+        fragmentGroup.add(p);
+      }
+      for (let i = 0; i < neutronCount; i++) {
+        const n = new THREE.Mesh(neutronGeom, neutronMat);
+        randomPositionInSphere(n, fragRadius);
+        fragmentGroup.add(n);
+      }
+      return fragmentGroup;
+    }
+
+    // Create a single free neutron
+    function createFreeNeutron() {
+      const geom = new THREE.SphereGeometry(0.1, 8, 8);
+      const mat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+      return new THREE.Mesh(geom, mat);
+    }
+
+    /************************************************************************
+     * BUTTONS & STATE CONTROL
+     ************************************************************************/
+    function startFission() {
+      // If already triggered, do nothing
+      if (fissionTriggered) return;
+      // Otherwise, neutron will move automatically in update()
+    }
+
+    function resetSimulation() {
+      // Cancel any animation frames
+      cancelAnimationFrame(animationId);
+
+      // Clear scene except for lights, camera
+      // Remove old objects
+      while (scene.children.length > 0) {
+        let obj = scene.children[0];
+        scene.remove(obj);
+      }
+
+      // Re-init variables
+      fissionTriggered = false;
+      fissionFragments = [];
+      releasedNeutrons = [];
+
+      // Re-add lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+      scene.add(ambientLight);
+      const pointLight = new THREE.PointLight(0xffffff, 1, 50);
+      pointLight.position.set(0, 0, 0);
+      scene.add(pointLight);
+
+      // Recreate camera
+      camera.position.set(0, 0, 10);
+
+      // Rebuild nucleus
+      nucleusGroup = new THREE.Group();
+      scene.add(nucleusGroup);
+      buildNucleus();
+      createNucleusBoundary();
+
+      // Recreate neutron
+      createIncomingNeutron();
+
+      // Resume animation
+      animate();
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      document.getElementById("pauseBtn").textContent = isPaused ? "Resume" : "Pause";
+    }
+
+    /************************************************************************
+     * EVENT LISTENERS
+     ************************************************************************/
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</body>
+</html>

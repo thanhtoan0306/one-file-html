@@ -1,0 +1,338 @@
+<!--
+  File: dna_replication.html
+  Description:
+  A single HTML file that uses Three.js (r140 or later) and OrbitControls
+  to simulate the DNA replication process in a simplified, illustrative manner.
+
+  All code (HTML, CSS, JS) is embedded in this file. The steps include:
+   1. Building a double helix.
+   2. Creating a replication fork that unzips the strands from a specified point.
+   3. Animating the unzipping and the addition of new base pairs.
+
+  Author: OpenAI (Modified by You)
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DNA Replication Simulation</title>
+
+  <!-- ========== THREE.JS and ORBITCONTROLS (r140 or later) ========== -->
+  <!-- Load Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+  <!-- Load OrbitControls -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- ========== INLINE CSS ========== -->
+  <style>
+    /* Ensure html/body take full window size */
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* Hide scrollbars */
+      background-color: #111; /* Dark background for contrast */
+    }
+
+    /* Make the canvas fill its container (the body) */
+    canvas#dnaCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- The Three.js renderer will use this canvas -->
+  <canvas id="dnaCanvas"></canvas>
+
+  <!-- ========== INLINE JAVASCRIPT ========== -->
+  <script>
+  /**************************************************************************
+   * GLOBALS & INITIAL SETUP
+   **************************************************************************/
+  let scene, camera, renderer, controls;
+  let dnaGroup;               // Original DNA double helix
+  let forkGroup;              // Cloned and modified DNA (unzipping fork)
+  const DNA_LENGTH = 20;      // Number of base pairs
+  const BASE_PAIR_SPACING = 0.5;  // Distance between consecutive base pairs
+  let replicationSeparation = 0;  // Tracks current "unzipping" point (0 = fully zipped)
+  let animateFork = true;     // Flag to toggle replication fork animation
+  let polymerase;            // Represents a polymerase/enzyme
+
+  init();
+  animate();
+
+  /**************************************************************************
+   * INIT: SETUP SCENE, CAMERA, RENDERER, CONTROLS
+   **************************************************************************/
+  function init() {
+    // Create scene
+    scene = new THREE.Scene();
+
+    // Create camera
+    camera = new THREE.PerspectiveCamera(
+      45,                                // field of view
+      window.innerWidth / window.innerHeight, // aspect ratio
+      0.1,                                // near plane
+      1000                                // far plane
+    );
+    camera.position.set(0, 0, 18);
+
+    // Create renderer
+    renderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById('dnaCanvas'),
+      antialias: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    // OrbitControls for user interaction (rotate, zoom, pan)
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; // smooth camera motion
+    controls.dampingFactor = 0.05;
+
+    // Basic lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+
+    // Build the initial, complete DNA
+    dnaGroup = createDNA(DNA_LENGTH);
+    scene.add(dnaGroup);
+
+    // Create an initial replication fork
+    forkGroup = createReplicationFork(dnaGroup, replicationSeparation);
+    forkGroup.visible = false; // Start hidden; will animate in
+    scene.add(forkGroup);
+
+    // Optional: create a polymerase or enzyme representation
+    polymerase = createPolymerase();
+    polymerase.visible = false;
+    scene.add(polymerase);
+
+    // Handle resizing
+    window.addEventListener('resize', onWindowResize, false);
+  }
+
+  /**************************************************************************
+   * CREATE DNA (DOUBLE HELIX)
+   * length: number of base pairs
+   **************************************************************************/
+  function createDNA(length) {
+    const dna = new THREE.Group();
+
+    // We'll create a repeating pattern of bases: A-T, T-A, C-G, G-C, etc.
+    // Just for demonstration, we cycle them in a set array.
+    const basePairs = ['A-T','T-A','C-G','G-C'];
+    let baseIndex = 0;
+
+    for (let i = 0; i < length; i++) {
+      // angle for the helix
+      const angle = i * 0.4; // 0.4 rad increment per base pair
+      const y = i * BASE_PAIR_SPACING;
+
+      // pick a pair from basePairs
+      const pairType = basePairs[baseIndex % basePairs.length];
+      baseIndex++;
+
+      // build the step (a pair)
+      const stepGroup = createDNAStep(pairType, angle, y);
+      dna.add(stepGroup);
+    }
+
+    return dna;
+  }
+
+  /**************************************************************************
+   * CREATE A SINGLE STEP (A BASE PAIR + BACKBONES) AT A GIVEN ANGLE, Y
+   **************************************************************************/
+  function createDNAStep(pair, angle, yOffset) {
+    // Group to hold the backbone and base pair
+    const stepGroup = new THREE.Group();
+
+    // We place the sugar-phosphate backbones (two cylinders) in a spiral
+    // We'll offset them in x and z with sine/cosine
+    // For clarity, let's define a radius from center for each backbone
+    const radius = 2.0;
+
+    // Left backbone
+    const leftX = radius * Math.cos(angle);
+    const leftZ = radius * Math.sin(angle);
+    // Right backbone (roughly 180 deg around)
+    const rightX = radius * Math.cos(angle + Math.PI);
+    const rightZ = radius * Math.sin(angle + Math.PI);
+
+    // Create backbone geometry
+    const backboneGeom = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+    // Material (blue for one side, purple for the other)
+    const leftMat = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+    const rightMat = new THREE.MeshPhongMaterial({ color: 0x800080 });
+
+    // Left backbone segment
+    const leftBackbone = new THREE.Mesh(backboneGeom, leftMat);
+    leftBackbone.position.set(leftX, yOffset, leftZ);
+    leftBackbone.rotation.x = Math.PI / 2; // align cylinder along x/y
+    stepGroup.add(leftBackbone);
+
+    // Right backbone segment
+    const rightBackbone = new THREE.Mesh(backboneGeom, rightMat);
+    rightBackbone.position.set(rightX, yOffset, rightZ);
+    rightBackbone.rotation.x = Math.PI / 2;
+    stepGroup.add(rightBackbone);
+
+    // Now create the base pair linking the two sides
+    // pair is something like 'A-T'
+    const [base1, base2] = pair.split('-'); // e.g. base1='A', base2='T'
+
+    const base1Obj = createBase(base1);
+    const base2Obj = createBase(base2);
+
+    // Position them halfway between the backbones
+    // We'll place base1 near the left backbone, base2 near the right
+    const midX = (leftX + rightX) / 2;
+    const midZ = (leftZ + rightZ) / 2;
+
+    // We'll offset them a bit so base1 is closer to left, base2 closer to right
+    base1Obj.position.set((leftX + midX) / 2, yOffset, (leftZ + midZ) / 2);
+    base2Obj.position.set((rightX + midX) / 2, yOffset, (rightZ + midZ) / 2);
+
+    stepGroup.add(base1Obj);
+    stepGroup.add(base2Obj);
+
+    return stepGroup;
+  }
+
+  /**************************************************************************
+   * CREATE A BASE (A, T, C, or G) as a small sphere or box
+   **************************************************************************/
+  function createBase(base) {
+    let color;
+    switch(base) {
+      case 'A': color = 0xff0000; break; // red
+      case 'T': color = 0xffff00; break; // yellow
+      case 'C': color = 0x00ff00; break; // green
+      case 'G': color = 0x00ffff; break; // cyan
+      default:  color = 0xffffff; break; // white fallback
+    }
+    const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+    const material = new THREE.MeshPhongMaterial({ color });
+    const mesh = new THREE.Mesh(geometry, material);
+    return mesh;
+  }
+
+  /**************************************************************************
+   * CREATE REPLICATION FORK
+   * dna: The original DNA group
+   * separationPoint: which base pair index to start unzipping
+   **************************************************************************/
+  function createReplicationFork(dna, separationPoint) {
+    // We'll clone the entire group first
+    const fork = dna.clone(true);
+
+    // For each child (each "step"), if it's >= separationPoint, separate the pairs
+    fork.children.forEach((step, index) => {
+      if (index >= separationPoint) {
+        // step has 4 objects: left backbone, right backbone, base1, base2
+        // We'll shift them outward in x so the two bases separate
+        // The further from separationPoint, the bigger the separation
+        const separationDist = (index - separationPoint) * 0.05; // tweak as needed
+
+        // Usually, the left side is child 0, right side child 1, base1 is 2, base2 is 3
+        // But we used a certain order in createDNAStep(). Let's search by approximate positions:
+        // Or simply assume: child[0]=leftBB, child[1]=rightBB, child[2]=base1, child[3]=base2
+        const leftBackbone = step.children[0];
+        const rightBackbone = step.children[1];
+        const base1 = step.children[2];
+        const base2 = step.children[3];
+
+        // We'll move base1/base2 outward in opposite directions from midpoint
+        // A simple approach: just displace them in x by +/- separationDist
+        // For a more advanced approach, we could compute real normal vectors.
+        base1.position.x -= separationDist;
+        base2.position.x += separationDist;
+
+        // Optionally rotate the backbones slightly outward, but let's keep it simple
+        leftBackbone.position.x -= separationDist * 0.5;
+        rightBackbone.position.x += separationDist * 0.5;
+      }
+    });
+
+    return fork;
+  }
+
+  /**************************************************************************
+   * CREATE A POLYMERASE (OPTIONAL)
+   * Just a small sphere or box representing the enzyme
+   **************************************************************************/
+  function createPolymerase() {
+    const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    const material = new THREE.MeshPhongMaterial({
+      color: 0xff00ff,
+      opacity: 0.8,
+      transparent: true
+    });
+    const enzyme = new THREE.Mesh(geometry, material);
+    enzyme.position.set(0, -1, 0);
+    return enzyme;
+  }
+
+  /**************************************************************************
+   * ANIMATION LOOP
+   **************************************************************************/
+  function animate() {
+    requestAnimationFrame(animate);
+
+    controls.update();
+
+    // Animate the replication fork if desired
+    if (animateFork) {
+      animateReplication(dnaGroup, forkGroup, 0.02);
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  /**************************************************************************
+   * animateReplication
+   * Gradually increase the separationPoint, re-build the fork, show new bases, etc.
+   **************************************************************************/
+  function animateReplication(dnaGroup, forkGroup, speed) {
+    // Show the fork once separation starts
+    if (replicationSeparation < DNA_LENGTH) {
+      replicationSeparation += speed;
+      // Rebuild the fork
+      scene.remove(forkGroup);
+      const currentSeparationPoint = Math.floor(replicationSeparation);
+      forkGroup = createReplicationFork(dnaGroup, currentSeparationPoint);
+      scene.add(forkGroup);
+      forkGroup.visible = true;
+
+      // Move polymerase along the fork
+      if (polymerase) {
+        polymerase.visible = true;
+        polymerase.position.y = currentSeparationPoint * BASE_PAIR_SPACING;
+      }
+    } else {
+      // If we've reached the end, we can stop
+      animateFork = false;
+    }
+  }
+
+  /**************************************************************************
+   * HANDLE WINDOW RESIZE
+   **************************************************************************/
+  function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+  </script>
+</body>
+</html>

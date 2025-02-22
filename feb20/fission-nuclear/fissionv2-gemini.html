@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuclear Fission Chain Reaction</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: linear-gradient(to bottom, #4b0082, #000000); } /* Cosmic background */
+        #canvas-container { width: 100%; height: 100%; }
+        .star { position: absolute; width: 2px; height: 2px; background-color: white; border-radius: 50%; animation: twinkle 2s linear infinite; }
+        @keyframes twinkle { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/three@latest/build/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 1, 0, 0); // Central light
+        scene.add(pointLight);
+
+        // Stars
+        for (let i = 0; i < 300; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            document.body.appendChild(star);
+        }
+
+        // Uranium-235 Nuclei
+        const nuclei = [];
+        const numNuclei = 8;
+        const nucleusGeometry = new THREE.SphereGeometry(1, 32, 32);
+
+        for (let i = 0; i < numNuclei; i++) {
+            const nucleusMaterial = new THREE.MeshPhongMaterial({ emissive: 0x00ffff, color: 0x00ffff }); // Cyan glow
+            const nucleus = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
+            nucleus.position.set(Math.random() * 10 - 5, Math.random() * 10 - 5, Math.random() * 10 - 5); // Random positions
+            scene.add(nucleus);
+            nuclei.push({ mesh: nucleus, protons: [], neutrons: [], wobbling: Math.random() * 0.1 });
+
+            // Protons and Neutrons (Simplified representation)
+            for (let j = 0; j < 92; j++) { nuclei[i].protons.push(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(0.8)); }
+            for (let j = 0; j < 143; j++) { nuclei[i].neutrons.push(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(0.8)); }
+        }
+
+        // Incoming Neutron
+        const neutronGeometry = new THREE.SphereGeometry(0.2, 32, 32);
+        const neutronMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 }); // Metallic gray
+        const neutron = new THREE.Mesh(neutronGeometry, neutronMaterial);
+        neutron.position.set(0, 0, -20); // Initial position
+        scene.add(neutron);
+        const neutronTarget = nuclei[0].mesh.position; // Target the first nucleus
+        let neutronSpeed = 0.05;
+
+        // Fission Function
+        function fission(nucleus) {
+            // ... (Implementation for fission: fragment creation, explosion effects, neutron release)
+        }
+
+
+        camera.position.z = 15;
+        scene.rotation.y = 0.01; // Initial rotation
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Nucleus Wobble and Rotation
+            for (const nucleusData of nuclei) {
+                nucleusData.mesh.rotation.x += 0.01;
+                nucleusData.mesh.rotation.y += 0.01;
+                nucleusData.mesh.scale.x = 1 + Math.sin(Date.now() * 0.002 + nucleusData.wobbling) * 0.05;
+                nucleusData.mesh.scale.y = 1 + Math.sin(Date.now() * 0.002 + nucleusData.wobbling + Math.PI / 3) * 0.05;
+                nucleusData.mesh.scale.z = 1 + Math.sin(Date.now() * 0.002 + nucleusData.wobbling + 2 * Math.PI / 3) * 0.05;
+            }
+
+            // Neutron Movement
+            const neutronDirection = new THREE.Vector3().subVectors(neutronTarget, neutron.position).normalize();
+            neutron.position.add(neutronDirection.multiplyScalar(neutronSpeed));
+            neutronSpeed += 0.001; // Accelerate neutron
+
+            scene.rotation.y += 0.002; // Rotate the scene
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+
+        // ... (Rest of the code for fragment creation, explosion effects, neutron release, chain reaction logic, etc.)
+
+    </script>
+</body>
+</html>
