@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Kalman Filter Simulation</title>
+  <style>
+    #canvas {
+      border: 1px solid black;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="800" height="400"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Kalman Filter Parameters (có thể điều chỉnh)
+    const Q = 0.01; // Process noise (sai số mô hình)
+    const R = 0.1;  // Measurement noise (sai số cảm biến)
+
+    // Kalman Filter Variables
+    let x = 0;      // Estimated position (ước tính vị trí)
+    let P = 1;      // Estimated error covariance (ước tính hiệp phương sai sai số)
+    let K = 0;      // Kalman gain (độ lợi Kalman)
+
+    // Data for Chart.js
+    const labels = [];
+    const rawData = [];
+    const kalmanData = [];
+
+    // Create Chart
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Raw Mouse Position',
+                    data: rawData,
+                    borderColor: 'red',
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0, // Ẩn các điểm
+                },
+                {
+                    label: 'Kalman Filtered Position',
+                    data: kalmanData,
+                    borderColor: 'blue',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                }
+            ]
+        },
+        options: {
+            animation: false, // Tắt animation để cập nhật nhanh
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time (ticks)'
+                    }
+                },
+                y: {
+                    title: {
+                      display: true,
+                      text: 'Position'
+                    },
+                    min: 0,      // Giới hạn trục y
+                    max: canvas.width
+                }
+            }
+        }
+    });
+
+    // Add Mousemove Event Listener
+    let mouseX = canvas.width / 2; // Khởi tạo vị trí chuột ban đầu
+
+    canvas.addEventListener('mousemove', (event) => {
+        // Lấy vị trí chuột (thêm nhiễu)
+        mouseX = event.offsetX + (Math.random() - 0.5) * 50;  // Thêm nhiễu ngẫu nhiên
+        rawData.push(mouseX);  // Lưu vị trí thô
+
+        // Kalman Filter Update
+        // 1. Prediction Step
+        //    (Không có mô hình chuyển động, nên x_predicted = x_previous)
+        //    P = P + Q; // Cập nhật độ không chắc chắn
+
+        // 2. Update Step
+        K = P / (P + R);        // Tính Kalman gain
+        x = x + K * (mouseX - x); // Cập nhật ước tính vị trí
+        P = (1 - K) * P;        // Cập nhật ước tính sai số
+
+        kalmanData.push(x);     // Lưu vị trí đã lọc
+        labels.push(labels.length);  // Cập nhật trục x (thời gian)
+
+        // Giữ số lượng điểm dữ liệu vừa phải (ví dụ: 100 điểm)
+        if (labels.length > 100) {
+            labels.shift();
+            rawData.shift();
+            kalmanData.shift();
+        }
+
+        chart.update(); // Cập nhật biểu đồ
+    });
+  </script>
+</body>
+</html>
