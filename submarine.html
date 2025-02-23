@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic 3D Submarine Simulation</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #001a33; /* Deep ocean blue */
+        }
+        canvas { 
+            display: block; 
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Submarine group
+        const subGroup = new THREE.Group();
+
+        // Create submarine hull (more detailed shape)
+        const hullGeometry = new THREE.CylinderGeometry(0.7, 0.7, 5, 32, 1, false, 0, Math.PI * 2);
+        const hullMaterial = new THREE.MeshPhongMaterial({
+            color: 0x4682b4,
+            shininess: 50,
+            specular: 0x333333,
+            metalness: 0.8
+        });
+        const hull = new THREE.Mesh(hullGeometry, hullMaterial);
+        hull.rotation.z = Math.PI / 2;
+        hull.castShadow = true;
+        subGroup.add(hull);
+
+        // Conning tower (sail)
+        const towerGeometry = new THREE.BoxGeometry(0.8, 1.5, 2);
+        const tower = new THREE.Mesh(towerGeometry, hullMaterial);
+        tower.position.set(0, 1, 0);
+        tower.castShadow = true;
+        subGroup.add(tower);
+
+        // Periscope
+        const periGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 16);
+        const periscope = new THREE.Mesh(periGeometry, hullMaterial);
+        periscope.position.set(0, 2, 0);
+        subGroup.add(periscope);
+
+        // Propeller (more detailed)
+        const propGroup = new THREE.Group();
+        const propBladeGeometry = new THREE.BoxGeometry(0.05, 0.8, 0.1);
+        for (let i = 0; i < 4; i++) {
+            const blade = new THREE.Mesh(propBladeGeometry, hullMaterial);
+            blade.rotation.z = (Math.PI / 2) * i;
+            blade.position.y = 0.4 * Math.cos((Math.PI / 2) * i);
+            blade.position.x = 0.4 * Math.sin((Math.PI / 2) * i);
+            propGroup.add(blade);
+        }
+        propGroup.position.set(0, 0, -2.5);
+        subGroup.add(propGroup);
+
+        scene.add(subGroup);
+
+        // Enhanced water
+        const waterGeometry = new THREE.PlaneGeometry(100, 100, 32, 32);
+        const waterMaterial = new THREE.MeshPhongMaterial({
+            color: 0x004466,
+            transparent: true,
+            opacity: 0.8,
+            shininess: 100,
+            specular: 0xffffff
+        });
+        const water = new THREE.Mesh(waterGeometry, waterMaterial);
+        water.rotation.x = -Math.PI / 2;
+        water.position.y = -2;
+        water.receiveShadow = true;
+        scene.add(water);
+
+        // Improved lighting
+        const ambientLight = new THREE.AmbientLight(0x203040, 0.5);
+        scene.add(ambientLight);
+        const spotLight = new THREE.SpotLight(0xffffff, 1);
+        spotLight.position.set(5, 10, 5);
+        spotLight.castShadow = true;
+        spotLight.shadow.mapSize.width = 1024;
+        spotLight.shadow.mapSize.height = 1024;
+        scene.add(spotLight);
+
+        // Add underwater particles
+        const particleCount = 100;
+        const particles = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 20;
+            positions[i + 1] = (Math.random() - 0.5) * 20;
+            positions[i + 2] = (Math.random() - 0.5) * 20;
+        }
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particleMaterial = new THREE.PointsMaterial({
+            color: 0x88ccff,
+            size: 0.1,
+            transparent: true
+        });
+        const particleSystem = new THREE.Points(particles, particleMaterial);
+        scene.add(particleSystem);
+
+        // Camera position
+        camera.position.set(5, 3, 5);
+        camera.lookAt(0, 0, 0);
+
+        // Animation
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+
+            // Submarine movement
+            subGroup.rotation.y += 0.002;
+            subGroup.position.y = Math.sin(time) * 0.2;
+            propGroup.rotation.z += 0.2;
+
+            // Water animation
+            const positions = water.geometry.attributes.position.array;
+            for (let i = 1; i < positions.length; i += 3) {
+                positions[i] = -2 + Math.sin(time + i) * 0.1;
+            }
+            water.geometry.attributes.position.needsUpdate = true;
+
+            // Particle movement
+            const particlePositions = particleSystem.geometry.attributes.position.array;
+            for (let i = 1; i < particlePositions.length; i += 3) {
+                particlePositions[i] += 0.01;
+                if (particlePositions[i] > 10) particlePositions[i] = -10;
+            }
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
