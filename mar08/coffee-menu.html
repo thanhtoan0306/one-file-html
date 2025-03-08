@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee App</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.31/vue.global.min.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div id="app">
+        <!-- Status Bar -->
+        <div class="bg-emerald-700 text-white px-4 py-2 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-wifi"></i>
+                <i class="fas fa-signal"></i>
+            </div>
+            <div>07:53</div>
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-battery-full"></i>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="p-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <button class="w-12 h-12 bg-gradient-to-br from-amber-400 to-emerald-600 rounded-lg flex items-center justify-center text-white">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="ml-4">
+                    <p class="text-gray-700">Good Morning</p>
+                    <h2 class="text-2xl font-bold text-gray-800">Adam Watson</h2>
+                </div>
+            </div>
+            <button class="w-12 h-12 bg-gradient-to-br from-amber-400 to-emerald-600 rounded-lg flex items-center justify-center text-white">
+                <i class="fas fa-shopping-cart"></i>
+            </button>
+        </div>
+
+        <!-- Search Section -->
+        <div class="px-4 mt-4">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">Find Your Best Drink</h1>
+            
+            <div class="relative">
+                <div class="flex items-center bg-white rounded-full shadow-md px-4 py-2">
+                    <i class="fas fa-search text-gray-400 mr-2"></i>
+                    <input type="text" placeholder="Search Your Drink" class="flex-grow focus:outline-none text-gray-500">
+                    <button class="ml-2">
+                        <i class="fas fa-sliders-h text-gray-400"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Filters -->
+        <div class="px-4 mt-6 flex space-x-2 overflow-x-auto pb-2">
+            <button class="px-4 py-2 bg-emerald-600 text-white rounded-full flex items-center">
+                <i class="fas fa-coffee mr-2"></i>
+                <span>COFFEE</span>
+            </button>
+            <button class="px-4 py-2 bg-white border border-emerald-600 text-gray-600 rounded-full flex items-center">
+                <i class="fas fa-mug-hot mr-2"></i>
+                <span>TEA</span>
+            </button>
+            <button class="px-4 py-2 bg-white border border-emerald-600 text-gray-600 rounded-full flex items-center">
+                <i class="fas fa-birthday-cake mr-2"></i>
+                <span>CAKE</span>
+            </button>
+            <button class="px-4 py-2 bg-white border border-emerald-600 text-gray-600 rounded-full flex items-center">
+                <i class="fas fa-glass-whiskey mr-2"></i>
+                <span>JUICE</span>
+            </button>
+        </div>
+
+        <!-- Coffee Section -->
+        <div class="px-4 mt-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">COFFEE</h2>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Coffee Item 1 -->
+                <div class="bg-white rounded-lg p-4 relative">
+                    <button class="absolute top-2 right-2 text-gray-400">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <div class="flex justify-center mb-4">
+                        <img src="/api/placeholder/150/150" alt="Green Coffee Cup" class="h-32">
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-800">COFFE NAME</h3>
+                        <p class="text-gray-500 text-sm">400 ML</p>
+                    </div>
+                    <div class="text-xl font-bold text-gray-800 mt-2 text-right">3$</div>
+                </div>
+                
+                <!-- Coffee Item 2 -->
+                <div class="bg-white rounded-lg p-4 border border-emerald-600 relative">
+                    <button class="absolute top-2 right-2 text-gray-400">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <div class="flex justify-center mb-4">
+                        <img src="/api/placeholder/150/150" alt="Green Coffee Cup" class="h-32">
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-800">COFFE NAME</h3>
+                        <p class="text-gray-500 text-sm">400 ML</p>
+                    </div>
+                    <div class="text-xl font-bold text-gray-800 mt-2 text-right">3$</div>
+                </div>
+                
+                <!-- Coffee Item 3 -->
+                <div class="bg-white rounded-lg p-4 border border-emerald-600 relative">
+                    <button class="absolute top-2 right-2 text-gray-400">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <div class="flex justify-center mb-4">
+                        <img src="/api/placeholder/150/150" alt="Green Coffee Cup" class="h-32">
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-800">COFFE NAME</h3>
+                        <p class="text-gray-500 text-sm">400 ML</p>
+                    </div>
+                    <div class="text-xl font-bold text-gray-800 mt-2 text-right">3$</div>
+                </div>
+                
+                <!-- Coffee Item 4 -->
+                <div class="bg-white rounded-lg p-4 border border-emerald-600 relative">
+                    <button class="absolute top-2 right-2 text-gray-400">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <div class="flex justify-center mb-4">
+                        <img src="/api/placeholder/150/150" alt="Green Coffee Cup" class="h-32">
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-800">COFFE NAME</h3>
+                        <p class="text-gray-500 text-sm">400 ML</p>
+                    </div>
+                    <div class="text-xl font-bold text-gray-800 mt-2 text-right">3$</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="fixed bottom-0 left-0 right-0 bg-emerald-700 text-white flex justify-between items-center px-4 py-2">
+            <button class="flex flex-col items-center text-xs">
+                <i class="fas fa-map-marker-alt text-lg mb-1"></i>
+                <span>LOCATION</span>
+            </button>
+            <button class="flex flex-col items-center text-xs">
+                <i class="fas fa-user text-lg mb-1"></i>
+                <span>PROFILE</span>
+            </button>
+            <div class="-mt-8">
+                <button class="bg-gradient-to-br from-emerald-600 to-amber-500 w-16 h-16 rounded-full flex items-center justify-center border-4 border-white">
+                    <i class="fas fa-home text-white text-xl"></i>
+                </button>
+            </div>
+            <button class="flex flex-col items-center text-xs">
+                <i class="fas fa-credit-card text-lg mb-1"></i>
+                <span>PAYMENTS</span>
+            </button>
+            <button class="flex flex-col items-center text-xs">
+                <i class="fas fa-gift text-lg mb-1"></i>
+                <span>GIFTS</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    coffeeItems: [
+                        { id: 1, name: 'COFFEE NAME', volume: '400 ML', price: '3$', favorite: false },
+                        { id: 2, name: 'COFFEE NAME', volume: '400 ML', price: '3$', favorite: false },
+                        { id: 3, name: 'COFFEE NAME', volume: '400 ML', price: '3$', favorite: false },
+                        { id: 4, name: 'COFFEE NAME', volume: '400 ML', price: '3$', favorite: false }
+                    ],
+                    categories: [
+                        { id: 1, name: 'COFFEE', icon: 'coffee', active: true },
+                        { id: 2, name: 'TEA', icon: 'mug-hot', active: false },
+                        { id: 3, name: 'CAKE', icon: 'birthday-cake', active: false },
+                        { id: 4, name: 'JUICE', icon: 'glass-whiskey', active: false }
+                    ]
+                }
+            },
+            methods: {
+                toggleFavorite(item) {
+                    item.favorite = !item.favorite;
+                },
+                setActiveCategory(category) {
+                    this.categories.forEach(cat => cat.active = false);
+                    category.active = true;
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
